@@ -1,29 +1,46 @@
-const BASE_URL = "https://api.pokemontcg.io/v2";
-const API_KEY = import.meta.env.VITE_POKEMONTCG_API_KEY;
+// Card data is bundled locally in public/data/ (see scripts/fetch-tcg-data.mjs)
+// instead of being fetched live, so the app works fully offline and never
+// hits the pokemontcg.io API's rate limits.
+const DATA_URL = `${import.meta.env.BASE_URL}data`;
 
-async function request(path) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: API_KEY ? { "X-Api-Key": API_KEY } : {},
-  });
-  if (!res.ok) throw new Error(`Pokémon TCG API error: ${res.status}`);
-  const json = await res.json();
-  return json.data;
+let setsPromise;
+let allCardsPromise;
+const cardsBySetPromiseCache = new Map();
+
+async function getJson(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`Failed to load bundled data: ${path} (${res.status})`);
+  return res.json();
 }
 
 export function fetchSets() {
-  return request(`/sets?orderBy=releaseDate`);
+  if (!setsPromise) setsPromise = getJson(`${DATA_URL}/sets.json`);
+  return setsPromise;
 }
 
 export function fetchCardsBySet(setId) {
-  return request(`/cards?q=${encodeURIComponent(`set.id:${setId}`)}&orderBy=number&pageSize=250`);
+  if (!cardsBySetPromiseCache.has(setId)) {
+    cardsBySetPromiseCache.set(setId, getJson(`${DATA_URL}/cards/${setId}.json`));
+  }
+  return cardsBySetPromiseCache.get(setId);
 }
 
-export function fetchCardsByName(name) {
-  const term = name.trim().replace(/"/g, "");
-  if (!term) return Promise.resolve([]);
-  return request(`/cards?q=${encodeURIComponent(`name:${term}*`)}&pageSize=60&orderBy=-set.releaseDate`);
+function getAllCards() {
+  if (!allCardsPromise) allCardsPromise = getJson(`${DATA_URL}/all-cards.json`);
+  return allCardsPromise;
 }
 
-export function fetchCardsByPokedexNumber(dex) {
-  return request(`/cards?q=${encodeURIComponent(`nationalPokedexNumbers:${dex}`)}&pageSize=60`);
+export async function fetchCardsByName(name) {
+  const term = name.trim().toLowerCase();
+  if (!term) return [];
+  const cards = await getAllCards();
+  return cards
+    .filter((c) => c.name.toLowerCase().startsWith(term))
+    .sort((a, b) => (a.set?.releaseDate < b.set?.releaseDate ? 1 : -1))
+    .slice(0, 60);
+}
+
+export async function fetchCardsByPokedexNumber(dex) {
+  const cards = await getAllCards();
+  return cards.filter((c) => c.nationalPokedexNumbers?.includes(dex)).slice(0, 60);
 }
