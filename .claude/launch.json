@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pokemon-app",
+      "runtimeExecutable": "C:\\Idéer\\Pokemonapp\\dev.cmd",
+      "runtimeArgs": [],
+      "port": 5173
+    }
+  ]
+}
