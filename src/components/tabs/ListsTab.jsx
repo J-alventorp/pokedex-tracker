@@ -20,6 +20,7 @@ export default function ListsTab({
   onDeleteList,
   checkedCards,
   onToggleCard,
+  onRequestConfirm,
   onBack,
 }) {
   const [newListName, setNewListName] = useState("");
@@ -34,7 +35,7 @@ export default function ListsTab({
 
   const activeList = lists.find((l) => l.id === activeListId);
 
-  const toggleListItem = (listId, key) => {
+  const commitToggleListItem = (listId, key) => {
     setLists((prev) => prev.map((l) => {
       if (l.id !== listId) return l;
       const has = l.checked.includes(key);
@@ -46,6 +47,21 @@ export default function ListsTab({
       }
       return { ...l, checked: [...l.checked, key] };
     }));
+  };
+
+  const toggleListItem = (listId, key, name) => {
+    const list = lists.find((l) => l.id === listId);
+    if (list?.checked.includes(key)) {
+      onRequestConfirm({
+        title: "Remove from collected?",
+        message: `${name} will no longer be marked as collected on this list, and any cards you picked for it will be cleared.`,
+        confirmLabel: "Remove",
+        tone: "danger",
+        onConfirm: () => commitToggleListItem(listId, key),
+      });
+      return;
+    }
+    commitToggleListItem(listId, key);
   };
 
   const toggleCategory = (name) => {
@@ -231,7 +247,7 @@ export default function ListsTab({
             entity={e}
             index={i}
             checked={activeList.checked.includes(entityKey(e))}
-            onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity))}
+            onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity), entity.name)}
             onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "list", listId: activeList.id } })}
           />
         ))}

@@ -154,6 +154,15 @@ export default function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // The overlay covers the screen but doesn't stop the page underneath from
+  // scrolling, since the real scroll container is the document itself.
+  useEffect(() => {
+    if (!modal && !confirm) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [modal, confirm]);
+
   // --- Navigation ------------------------------------------------------------
   const goToTab = (key) => {
     setSettings(false);
@@ -195,6 +204,20 @@ export default function App() {
       confirmLabel: "Delete",
       tone: "danger",
       onConfirm: () => performDeleteList(id),
+    });
+  };
+
+  const requestToggleEntity = (entity) => {
+    if (!checkedEntities.has(entity.dex)) {
+      toggleEntity(entity.dex);
+      return;
+    }
+    setConfirm({
+      title: "Remove from collected?",
+      message: `${entity.name} will no longer be marked as collected, and any cards you picked for it will be cleared.`,
+      confirmLabel: "Remove",
+      tone: "danger",
+      onConfirm: () => toggleEntity(entity.dex),
     });
   };
 
@@ -325,7 +348,7 @@ export default function App() {
           {tab === "dex" && (
             <DexTab
               checkedEntities={checkedEntities}
-              onToggleEntity={(entity) => toggleEntity(entity.dex)}
+              onToggleEntity={requestToggleEntity}
               onOpenInfo={setModal}
             />
           )}
@@ -341,6 +364,7 @@ export default function App() {
               onDeleteList={requestDeleteList}
               checkedCards={checkedCards}
               onToggleCard={toggleCard}
+              onRequestConfirm={setConfirm}
               onBack={goBack}
             />
           )}
