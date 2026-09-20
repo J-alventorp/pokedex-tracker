@@ -51,13 +51,10 @@ export async function fetchCardsByName(name) {
     .slice(0, 120);
 }
 
-export async function fetchCardsByPokedexNumber(dex) {
-  const cards = await getAllCards();
-  return cards.filter((c) => c.nationalPokedexNumbers?.includes(dex)).slice(0, 60);
-}
-
-// Same filter as fetchCardsByPokedexNumber but without the 60-card cap — an
-// auto-list has to hold every printing (Pikachu alone has 211).
+// Every printing of a Pokémon, oldest first (bundled data order). Used both
+// by the info modal's "known printings" list and by auto-list creation —
+// a capped list here used to silently hide every card released after
+// whichever printing happened to be the 60th oldest.
 export async function fetchAllCardsByPokedexNumber(dex) {
   const cards = await getAllCards();
   return cards.filter((c) => c.nationalPokedexNumbers?.includes(dex));

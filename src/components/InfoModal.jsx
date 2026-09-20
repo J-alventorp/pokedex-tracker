@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { fetchCardsByPokedexNumber } from "../api/pokemonTcg";
+import { fetchAllCardsByPokedexNumber } from "../api/pokemonTcg";
 import { rarityBadge } from "../utils";
 
 export default function InfoModal({ data, onClose }) {
@@ -15,7 +15,7 @@ export default function InfoModal({ data, onClose }) {
     }
     let cancelled = false;
     setStatus("loading");
-    fetchCardsByPokedexNumber(data.entity.dex)
+    fetchAllCardsByPokedexNumber(data.entity.dex)
       .then((cards) => {
         if (!cancelled) {
           setRelated(cards);
