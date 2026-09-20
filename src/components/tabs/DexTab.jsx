@@ -5,7 +5,7 @@ import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
 
-export default function DexTab({ checkedEntities, entityCardChoices, onToggleEntity, onSelectEntityCard, onOpenInfo }) {
+export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) {
   const { entities, status, loadMore, hasMore } = usePokedexEntities();
   const [query, setQuery] = useState("");
   const [view, setView] = useState("all");
@@ -37,12 +37,7 @@ export default function DexTab({ checkedEntities, entityCardChoices, onToggleEnt
             index={i}
             checked={checkedEntities.has(e.dex)}
             onToggle={onToggleEntity}
-            onOpenInfo={(data) => onOpenInfo({
-              ...data,
-              checked: checkedEntities.has(e.dex),
-              selectedCardId: entityCardChoices[e.dex] ?? null,
-              onSelectCard: (cardId) => onSelectEntityCard(e.dex, cardId),
-            })}
+            onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "dex" } })}
           />
         ))}
       </div>

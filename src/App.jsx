@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Settings } from "lucide-react";
 import { makeEntity } from "./api/pokeApi";
 import { fetchAllCardsByPokedexNumber } from "./api/pokemonTcg";
+import { entityKey, toCardIdArray } from "./utils";
 import { useLocalStorageState } from "./hooks/useLocalStorageState";
 import { adoptedSnapshot, useAppHistory } from "./hooks/useAppHistory";
 import { autoListId, buildCardList } from "./autoList";
@@ -87,16 +88,18 @@ export default function App() {
     return n;
   });
 
-  const setEntityCard = (dex, cardId) => {
+  const toggleEntityCard = (dex, cardId) => {
+    const current = toCardIdArray(entityCardChoices[dex]);
+    const adding = !current.includes(cardId);
     setEntityCardChoices((prev) => {
-      if (cardId == null) {
-        if (!(dex in prev)) return prev;
+      const next = adding ? [...current, cardId] : current.filter((id) => id !== cardId);
+      if (next.length === 0) {
         const { [dex]: _drop, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [dex]: cardId };
+      return { ...prev, [dex]: next };
     });
-    if (cardId != null) {
+    if (adding) {
       setCheckedEntities((prev) => (prev.has(dex) ? prev : new Set(prev).add(dex)));
     }
   };
@@ -119,6 +122,30 @@ export default function App() {
   }, []);
 
   const goBack = useAppHistory(snapshot, applySnapshot);
+  const closeModal = () => setModal(null);
+
+  // Recomputed every render (not baked in at the moment the modal was opened)
+  // so ticking cards while the modal is open updates its highlights live,
+  // and closing it never needs to touch navigation/scroll state at all.
+  let modalData = modal;
+  if (modal?.entity && modal.context?.type === "dex") {
+    const dex = modal.entity.dex;
+    modalData = {
+      ...modal,
+      checked: checkedEntities.has(dex),
+      selectedCardIds: toCardIdArray(entityCardChoices[dex]),
+      onToggleCardChoice: (cardId) => toggleEntityCard(dex, cardId),
+    };
+  } else if (modal?.entity && modal.context?.type === "list") {
+    const list = lists.find((l) => l.id === modal.context.listId);
+    const key = entityKey(modal.entity);
+    modalData = {
+      ...modal,
+      checked: !!list?.checked.includes(key),
+      selectedCardIds: toCardIdArray(list?.cardChoices?.[key]),
+      onToggleCardChoice: (cardId) => toggleListItemCard(modal.context.listId, key, cardId),
+    };
+  }
 
   // --- Toast -----------------------------------------------------------------
   useEffect(() => {
@@ -213,13 +240,16 @@ export default function App() {
     }
   };
 
-  const setListItemCard = (listId, key, cardId) => {
+  const toggleListItemCard = (listId, key, cardId) => {
     setLists((prev) => prev.map((l) => {
       if (l.id !== listId) return l;
+      const current = toCardIdArray(l.cardChoices?.[key]);
+      const adding = !current.includes(cardId);
+      const next = adding ? [...current, cardId] : current.filter((id) => id !== cardId);
       const cardChoices = { ...(l.cardChoices || {}) };
-      if (cardId == null) delete cardChoices[key];
-      else cardChoices[key] = cardId;
-      const checked = cardId != null && !l.checked.includes(key) ? [...l.checked, key] : l.checked;
+      if (next.length === 0) delete cardChoices[key];
+      else cardChoices[key] = next;
+      const checked = adding && !l.checked.includes(key) ? [...l.checked, key] : l.checked;
       return { ...l, cardChoices, checked };
     }));
   };
@@ -295,9 +325,7 @@ export default function App() {
           {tab === "dex" && (
             <DexTab
               checkedEntities={checkedEntities}
-              entityCardChoices={entityCardChoices}
               onToggleEntity={(entity) => toggleEntity(entity.dex)}
-              onSelectEntityCard={setEntityCard}
               onOpenInfo={setModal}
             />
           )}
@@ -313,14 +341,13 @@ export default function App() {
               onDeleteList={requestDeleteList}
               checkedCards={checkedCards}
               onToggleCard={toggleCard}
-              onSetListItemCard={setListItemCard}
               onBack={goBack}
             />
           )}
         </>
       )}
 
-      <InfoModal data={modal} onClose={goBack} />
+      <InfoModal data={modalData} onClose={closeModal} />
       <ConfirmDialog data={confirm} onConfirm={confirmAndClose} onCancel={goBack} />
       {toast && <div className="pc-toast" role="status">{toast}</div>}
     </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Check, Plus, Search } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
 import { usePokemonCategories } from "../../hooks/usePokemonCategories";
+import { entityKey } from "../../utils";
 import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
@@ -19,7 +20,6 @@ export default function ListsTab({
   onDeleteList,
   checkedCards,
   onToggleCard,
-  onSetListItemCard,
   onBack,
 }) {
   const [newListName, setNewListName] = useState("");
@@ -33,8 +33,6 @@ export default function ListsTab({
   const [activeCategories, setActiveCategories] = useState(new Set());
 
   const activeList = lists.find((l) => l.id === activeListId);
-
-  const entityKey = (e) => e.id ?? String(e.dex);
 
   const toggleListItem = (listId, key) => {
     setLists((prev) => prev.map((l) => {
@@ -227,24 +225,16 @@ export default function ListsTab({
       </div>
       <ProgressBar done={done} total={activeList.entities.length} />
       <div className="pc-grid">
-        {visible.map((e, i) => {
-          const key = entityKey(e);
-          return (
-            <EntityTile
-              key={key}
-              entity={e}
-              index={i}
-              checked={activeList.checked.includes(key)}
-              onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity))}
-              onOpenInfo={(data) => onOpenInfo({
-                ...data,
-                checked: activeList.checked.includes(key),
-                selectedCardId: activeList.cardChoices?.[key] ?? null,
-                onSelectCard: (cardId) => onSetListItemCard(activeList.id, key, cardId),
-              })}
-            />
-          );
-        })}
+        {visible.map((e, i) => (
+          <EntityTile
+            key={entityKey(e)}
+            entity={e}
+            index={i}
+            checked={activeList.checked.includes(entityKey(e))}
+            onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity))}
+            onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "list", listId: activeList.id } })}
+          />
+        ))}
       </div>
     </>
   );

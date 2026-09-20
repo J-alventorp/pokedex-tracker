@@ -106,3 +106,18 @@ export function listProgress(list, checkedCards) {
 export function listUnitLabel(list) {
   return (list.kind ?? "entities") === "cards" ? "cards" : "Pokémon";
 }
+
+// Entity-based lists key their per-Pokémon state (ticked, chosen cards) by
+// this — PokeAPI entities carry an id, hand-built ones fall back to the dex.
+export function entityKey(e) {
+  return e.id ?? String(e.dex);
+}
+
+// Card-choice storage used to hold a single id per Pokémon; now it holds an
+// array. Reading through this keeps old single-value data from misbehaving
+// (e.g. Array.prototype.includes vs. a raw string) instead of forcing a
+// migration.
+export function toCardIdArray(value) {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+}
