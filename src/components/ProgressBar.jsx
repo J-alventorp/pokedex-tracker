@@ -5,8 +5,11 @@ export default function ProgressBar({ done, total }) {
   return (
     <div className="pc-progress-wrap">
       <div className="pc-progress-track">
-        <div className="pc-progress-fill" style={{ width: `${pct}%`, background: getProgressColor(pct) }}>
-          <span className="pc-progress-ball">●</span>
+        <div
+          className="pc-progress-fill"
+          style={{ width: `${pct}%`, "--pct-color": getProgressColor(pct) }}
+        >
+          <span className="pc-progress-ball" aria-hidden="true" />
         </div>
       </div>
       <div className="pc-progress-meta">

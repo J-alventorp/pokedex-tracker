@@ -70,7 +70,7 @@ export default function InfoModal({ data, onClose }) {
               {status === "done" && related.length === 0 && <p className="pc-modal-hint">No cards logged yet for this one.</p>}
               {related.map((c) => (
                 <div className="pc-modal-row" key={c.id}>
-                  <span>{c.set?.name} · {c.set?.releaseDate?.slice(0, 4)}</span>
+                  <span>#{c.number} · {c.set?.name} · {c.set?.releaseDate?.slice(0, 4)}</span>
                   <strong>{rarityBadge(c.rarity)} {c.variant || c.rarity || "Unknown"}</strong>
                 </div>
               ))}

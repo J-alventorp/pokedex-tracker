@@ -39,6 +39,17 @@ async function readJsonIfExists(filePath) {
   }
 }
 
+// The API's paged card endpoint can return the same card on more than one page
+// (its ordering is not stable across pages), which used to leak duplicate ids
+// into the bundled data and render the same card twice in the app.
+function dedupeById(items) {
+  const byId = new Map();
+  for (const item of items) {
+    if (!byId.has(item.id)) byId.set(item.id, item);
+  }
+  return [...byId.values()];
+}
+
 function trimSet(set) {
   return {
     id: set.id,
@@ -70,21 +81,32 @@ function trimCard(card, set) {
 
 async function fetchAllSets() {
   const json = await requestJson(`${BASE_URL}/sets?orderBy=releaseDate&pageSize=250`);
-  return json.data;
+  return dedupeById(json.data);
 }
 
 async function fetchAllCardsForSet(setId) {
-  const cards = [];
+  const PAGE_SIZE = 250;
+  const byId = new Map();
   let page = 1;
   for (;;) {
     await sleep(REQUEST_DELAY_MS);
-    const url = `${BASE_URL}/cards?q=${encodeURIComponent(`set.id:${setId}`)}&orderBy=number&pageSize=250&page=${page}`;
+    const url = `${BASE_URL}/cards?q=${encodeURIComponent(`set.id:${setId}`)}&orderBy=number&pageSize=${PAGE_SIZE}&page=${page}`;
     const json = await requestJson(url);
-    cards.push(...json.data);
-    if (json.data.length < 250) break;
+    const batch = json.data || [];
+    const before = byId.size;
+    for (const card of batch) {
+      if (!byId.has(card.id)) byId.set(card.id, card);
+    }
+    // Stop once the API says we have everything, or a page adds nothing new
+    // (which is what overlapping pages look like).
+    const totalCount = typeof json.totalCount === "number" ? json.totalCount : null;
+    if (batch.length === 0) break;
+    if (totalCount !== null && byId.size >= totalCount) break;
+    if (byId.size === before) break;
+    if (batch.length < PAGE_SIZE) break;
     page += 1;
   }
-  return cards;
+  return [...byId.values()];
 }
 
 async function main() {
@@ -101,8 +123,14 @@ async function main() {
     const setFile = path.join(CARDS_DIR, `${set.id}.json`);
     const existing = await readJsonIfExists(setFile);
     if (existing) {
-      console.log(`Skipping ${set.name} (${i + 1}/${rawSets.length}) — already fetched, ${existing.length} cards`);
-      allCards.push(...existing);
+      const deduped = dedupeById(existing);
+      if (deduped.length !== existing.length) {
+        await writeFile(setFile, JSON.stringify(deduped));
+        console.log(`Repaired ${set.name} (${i + 1}/${rawSets.length}) — removed ${existing.length - deduped.length} duplicate cards, ${deduped.length} left`);
+      } else {
+        console.log(`Skipping ${set.name} (${i + 1}/${rawSets.length}) — already fetched, ${deduped.length} cards`);
+      }
+      allCards.push(...deduped);
       continue;
     }
     console.log(`Fetching cards for ${set.name} (${i + 1}/${rawSets.length})…`);
@@ -113,9 +141,10 @@ async function main() {
     console.log(`  ${cards.length} cards`);
   }
 
-  await writeFile(path.join(DATA_DIR, "all-cards.json"), JSON.stringify(allCards));
+  const uniqueCards = dedupeById(allCards);
+  await writeFile(path.join(DATA_DIR, "all-cards.json"), JSON.stringify(uniqueCards));
 
-  console.log(`\nDone. ${sets.length} sets, ${allCards.length} cards total.`);
+  console.log(`\nDone. ${sets.length} sets, ${uniqueCards.length} cards total.`);
 }
 
 main().catch((err) => {

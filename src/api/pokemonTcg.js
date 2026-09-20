@@ -13,6 +13,17 @@ async function getJson(path) {
   return res.json();
 }
 
+// The upstream API has handed us overlapping pages before, so the same card id
+// could appear twice in a set. Guard here too: a duplicate id would otherwise
+// render the same card twice and break React's keys.
+function dedupeById(cards) {
+  const byId = new Map();
+  for (const card of cards) {
+    if (!byId.has(card.id)) byId.set(card.id, card);
+  }
+  return [...byId.values()];
+}
+
 export function fetchSets() {
   if (!setsPromise) setsPromise = getJson(`${DATA_URL}/sets.json`);
   return setsPromise;
@@ -20,13 +31,13 @@ export function fetchSets() {
 
 export function fetchCardsBySet(setId) {
   if (!cardsBySetPromiseCache.has(setId)) {
-    cardsBySetPromiseCache.set(setId, getJson(`${DATA_URL}/cards/${setId}.json`));
+    cardsBySetPromiseCache.set(setId, getJson(`${DATA_URL}/cards/${setId}.json`).then(dedupeById));
   }
   return cardsBySetPromiseCache.get(setId);
 }
 
 function getAllCards() {
-  if (!allCardsPromise) allCardsPromise = getJson(`${DATA_URL}/all-cards.json`);
+  if (!allCardsPromise) allCardsPromise = getJson(`${DATA_URL}/all-cards.json`).then(dedupeById);
   return allCardsPromise;
 }
 
@@ -37,7 +48,7 @@ export async function fetchCardsByName(name) {
   return cards
     .filter((c) => c.name.toLowerCase().startsWith(term))
     .sort((a, b) => (a.set?.releaseDate < b.set?.releaseDate ? 1 : -1))
-    .slice(0, 60);
+    .slice(0, 120);
 }
 
 export async function fetchCardsByPokedexNumber(dex) {

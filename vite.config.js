@@ -5,4 +5,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: '/pokedex-tracker/',
   plugins: [react()],
+  server: {
+    // Honour the port the tooling hands us; fall back to Vite's default.
+    port: process.env.PORT ? Number(process.env.PORT) : 5173,
+  },
 })

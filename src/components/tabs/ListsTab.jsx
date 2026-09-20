@@ -1,16 +1,25 @@
 import { useState } from "react";
-import { ArrowLeft, Check, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Plus, Search } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
 import { usePokemonCategories } from "../../hooks/usePokemonCategories";
 import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
+import ListCard from "../ListCard";
 
-export default function ListsTab({ lists, setLists, onOpenInfo }) {
-  const [activeListId, setActiveListId] = useState(null);
-  const [creating, setCreating] = useState(false);
+export default function ListsTab({
+  lists,
+  setLists,
+  onOpenInfo,
+  activeListId,
+  setActiveListId,
+  creating,
+  setCreating,
+  onDeleteList,
+}) {
   const [newListName, setNewListName] = useState("");
   const [newListEntities, setNewListEntities] = useState(new Map());
+  const [saveError, setSaveError] = useState("");
   const [query, setQuery] = useState("");
   const [view, setView] = useState("all");
 
@@ -48,53 +57,52 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
       }
       return n;
     });
+    setSaveError("");
   };
 
-  const createList = () => {
-    if (!newListName.trim() || newListEntities.size === 0) return;
-    const id = `l${Date.now()}`;
-    setLists((prev) => [...prev, { id, name: newListName.trim(), entities: [...newListEntities.values()], checked: [] }]);
+  const resetDraft = () => {
     setNewListName("");
     setNewListEntities(new Map());
     setActiveCategories(new Set());
+    setSaveError("");
+  };
+
+  const pickedCount = newListEntities.size;
+  // Saving used to bail out silently when either of these was missing, which
+  // made the button look broken. Now the reason is always spelled out.
+  const blockedReason = !newListName.trim()
+    ? "Give your list a name first."
+    : pickedCount === 0
+      ? "Pick at least one Pokémon to put on the list."
+      : "";
+
+  const createList = () => {
+    if (blockedReason) {
+      setSaveError(blockedReason);
+      return;
+    }
+    const id = `l${Date.now()}`;
+    setLists((prev) => [...prev, { id, name: newListName.trim(), entities: [...newListEntities.values()], checked: [] }]);
+    resetDraft();
     setCreating(false);
     setActiveListId(id);
   };
 
-  const deleteList = (id) => {
-    setLists((prev) => prev.filter((l) => l.id !== id));
-    if (activeListId === id) setActiveListId(null);
+  const cancelCreate = () => {
+    resetDraft();
+    setCreating(false);
   };
-
-  if (!activeList && !creating) {
-    return (
-      <div className="pc-lists-grid">
-        {lists.map((l) => {
-          const done = l.checked.length;
-          const total = l.entities.length;
-          const pct = total ? Math.round((done / total) * 100) : 0;
-          return (
-            <div className="pc-list-card" key={l.id} onClick={() => setActiveListId(l.id)}>
-              <button className="pc-list-del" onClick={(e) => { e.stopPropagation(); deleteList(l.id); }}><Trash2 size={15} /></button>
-              <div className="pc-list-name">{l.name}</div>
-              <div className="pc-list-count">{total} Pokémon · {pct}% done</div>
-              <ProgressBar done={done} total={total} />
-            </div>
-          );
-        })}
-        <div className="pc-new-list-card" onClick={() => setCreating(true)}>
-          <Plus size={22} />
-          New list
-        </div>
-      </div>
-    );
-  }
 
   if (creating) {
     return (
       <div className="pc-create-panel">
-        <button className="pc-back-btn" onClick={() => setCreating(false)}><ArrowLeft size={16} /> Back</button>
-        <input type="text" placeholder="Name your list, e.g. Kanto Starters" value={newListName} onChange={(e) => setNewListName(e.target.value)} />
+        <button className="pc-back-btn" onClick={cancelCreate}><ArrowLeft size={16} /> Back</button>
+        <input
+          type="text"
+          placeholder="Name your list, e.g. Kanto Starters"
+          value={newListName}
+          onChange={(e) => { setNewListName(e.target.value); setSaveError(""); }}
+        />
         <p className="pc-modal-hint">Grab a whole set at once, then mix in more below:</p>
         <div className="pc-category-row">
           {Object.keys(categories).map((name) => (
@@ -110,6 +118,7 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
           ))}
         </div>
         {categoriesStatus === "loading" && <p className="pc-loading">Loading categories…</p>}
+        {categoriesStatus === "error" && <p className="pc-error">Couldn't load the bulk categories — pick Pokémon individually below.</p>}
         <p className="pc-modal-hint">Or pick individual Pokémon:</p>
         <div className="pc-pick-grid">
           {pickEntities.map((e) => {
@@ -119,12 +128,15 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
               <div
                 key={key}
                 className={`pc-pick-item ${on ? "on" : ""}`}
-                onClick={() => setNewListEntities((prev) => {
-                  const n = new Map(prev);
-                  if (n.has(key)) n.delete(key);
-                  else n.set(key, e);
-                  return n;
-                })}
+                onClick={() => {
+                  setSaveError("");
+                  setNewListEntities((prev) => {
+                    const n = new Map(prev);
+                    if (n.has(key)) n.delete(key);
+                    else n.set(key, e);
+                    return n;
+                  });
+                }}
               >
                 {on ? <Check size={14} /> : <Plus size={14} />} {e.name}
               </div>
@@ -136,9 +148,32 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
         {hasMore && pickStatus !== "loading" && (
           <button type="button" className="pc-load-more" onClick={loadMore}>Load more Pokémon</button>
         )}
-        <div>
-          <button className="pc-btn-primary" onClick={createList}>Save list</button>
-          <button className="pc-btn-ghost" onClick={() => setCreating(false)}>Cancel</button>
+        <div className="pc-create-actions">
+          <button
+            type="button"
+            className={`pc-btn-primary ${blockedReason ? "is-blocked" : ""}`}
+            aria-disabled={blockedReason ? "true" : "false"}
+            onClick={createList}
+          >
+            Save list{pickedCount > 0 ? ` (${pickedCount})` : ""}
+          </button>
+          <button type="button" className="pc-btn-ghost" onClick={cancelCreate}>Cancel</button>
+          <span className="pc-picked-count">{pickedCount} Pokémon selected</span>
+        </div>
+        {saveError && <p className="pc-form-error" role="alert">{saveError}</p>}
+      </div>
+    );
+  }
+
+  if (!activeList) {
+    return (
+      <div className="pc-lists-grid">
+        {lists.map((l) => (
+          <ListCard key={l.id} list={l} onOpen={setActiveListId} onDelete={onDeleteList} />
+        ))}
+        <div className="pc-new-list-card" onClick={() => setCreating(true)}>
+          <Plus size={22} />
+          New list
         </div>
       </div>
     );

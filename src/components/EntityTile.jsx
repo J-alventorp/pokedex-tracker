@@ -9,11 +9,17 @@ export default function EntityTile({ entity, checked, onToggle, onOpenInfo, inde
       onClick={() => onToggle(entity)}
     >
       {checked && <span className="pc-checked-badge"><Check size={13} /></span>}
-      <button className="pc-info-btn" onClick={(e) => { e.stopPropagation(); onOpenInfo({ entity }); }}>
+      <button className="pc-info-btn" aria-label={`About ${entity.name}`} onClick={(e) => { e.stopPropagation(); onOpenInfo({ entity }); }}>
         <Info size={13} />
       </button>
       <div className="pc-etile-icon">
-        <img className="pc-etile-img" src={entity.sprite} alt={entity.name} loading="lazy" />
+        <img
+          className="pc-etile-img"
+          src={entity.spriteSmall || entity.sprite}
+          alt={entity.name}
+          loading="lazy"
+          decoding="async"
+        />
       </div>
       <div className="pc-etile-dex">#{String(entity.dex).padStart(3, "0")}</div>
       <div className="pc-etile-name">{entity.name}</div>

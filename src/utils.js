@@ -38,10 +38,14 @@ const RARITY_ORDER = [
   "Rare Ultra",
   "Mega Hyper Rare",
   "Rare Holo VSTAR",
+  "Holo Rare VSTAR",
   "Rare Holo VMAX",
+  "Holo Rare VMAX",
   "Rare Holo V",
+  "Holo Rare V",
   "Rare Holo GX",
   "Rare Holo EX",
+  "Rare Holo ex",
   "Rare Holo LV.X",
   "Rare Holo Star",
   "Rare Prism Star",
@@ -56,6 +60,8 @@ const RARITY_ORDER = [
   "Classic Collection",
   "LEGEND",
   "Trainer Gallery Rare Holo",
+  "Pikachu Rare",
+  "Futuristic Rare",
   "Rare Holo",
   "Rare Shining",
   "Rare",
@@ -68,4 +74,17 @@ export function rarityRank(rarity = "") {
   const idx = RARITY_ORDER.indexOf(rarity);
   if (idx === -1) return 0;
   return RARITY_ORDER.length - idx;
+}
+
+// Coarse buckets used to pick a card tile's gradient border. Kept separate from
+// rarityRank so the visual tiers stay readable even when new rarity strings
+// appear in freshly bundled sets.
+export function rarityTier(rarity = "") {
+  const r = rarity.toLowerCase();
+  if (!r) return "common";
+  if (/hyper|rainbow|secret|special illustration/.test(r)) return "secret";
+  if (/ultra|full art|vmax|vstar|gx|\bex\b|illustration|double rare|shiny/.test(r)) return "ultra";
+  if (/holo|legend|prime|break|amazing|radiant|prism|ace|pikachu rare|futuristic|shining|rare/.test(r)) return "rare";
+  if (/uncommon/.test(r)) return "uncommon";
+  return "common";
 }

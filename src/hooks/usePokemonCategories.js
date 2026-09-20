@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { capitalize, fetchAllPokemonNames, spriteUrl } from "../api/pokeApi";
+import { capitalize, fetchAllPokemonNames, spriteUrl, spriteUrlSmall } from "../api/pokeApi";
 
 const MAX_BASE_DEX = 1025;
 
@@ -30,6 +30,7 @@ function buildCategories(all) {
         dex: entry.id,
         name: capitalize(entry.name),
         sprite: spriteUrl(entry.id),
+        spriteSmall: spriteUrlSmall(entry.id),
       });
       continue;
     }
@@ -43,6 +44,7 @@ function buildCategories(all) {
         dex: baseDex,
         name: capitalize(entry.name.replace(/-/g, " ")),
         sprite: spriteUrl(baseDex),
+        spriteSmall: spriteUrlSmall(baseDex),
       });
       break;
     }
