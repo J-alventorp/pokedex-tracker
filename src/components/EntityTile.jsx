@@ -1,18 +1,16 @@
-import { Check } from "lucide-react";
-
-const SHAPES = ["blob", "hex", "sticker"];
+import { Check, Info } from "lucide-react";
 
 export default function EntityTile({ entity, checked, onToggle, onOpenInfo, index }) {
-  const shape = SHAPES[index % SHAPES.length];
   const rotate = index % 2 === 0 ? "-1.2deg" : "1deg";
   return (
     <div
-      className={`pc-etile pc-shape-${shape} ${checked ? "checked" : ""}`}
+      className={`pc-etile pc-shape-sticker ${checked ? "checked" : ""}`}
       style={{ transform: `rotate(${rotate})` }}
-      onClick={() => onOpenInfo({ entity })}
+      onClick={() => onToggle(entity)}
     >
-      <button className="pc-check" onClick={(e) => { e.stopPropagation(); onToggle(entity.dex); }}>
-        {checked && <Check size={14} />}
+      {checked && <span className="pc-checked-badge"><Check size={13} /></span>}
+      <button className="pc-info-btn" onClick={(e) => { e.stopPropagation(); onOpenInfo({ entity }); }}>
+        <Info size={13} />
       </button>
       <div className="pc-etile-icon">
         <img className="pc-etile-img" src={entity.sprite} alt={entity.name} loading="lazy" />

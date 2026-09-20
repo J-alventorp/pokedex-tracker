@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Info } from "lucide-react";
 import { isHoloRarity, rarityBadge } from "../utils";
 
 export default function CardTile({ card, checked, onToggle, onOpenInfo, index }) {
@@ -8,10 +8,11 @@ export default function CardTile({ card, checked, onToggle, onOpenInfo, index })
     <div
       className={`pc-ctile ${checked ? "checked" : ""} ${holo ? "holo" : ""}`}
       style={{ transform: `rotate(${rotate})` }}
-      onClick={() => onOpenInfo({ card })}
+      onClick={() => onToggle(card.id)}
     >
-      <button className="pc-check" onClick={(e) => { e.stopPropagation(); onToggle(card.id); }}>
-        {checked && <Check size={14} />}
+      {checked && <span className="pc-checked-badge pc-checked-badge-br"><Check size={13} /></span>}
+      <button className="pc-info-btn" onClick={(e) => { e.stopPropagation(); onOpenInfo({ card }); }}>
+        <Info size={13} />
       </button>
       <span className="pc-rarity-badge">{rarityBadge(card.rarity)}</span>
       <div className="pc-ctile-icon">

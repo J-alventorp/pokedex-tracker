@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { ArrowLeft, Check, Plus, Search, Trash2 } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
+import { usePokemonCategories } from "../../hooks/usePokemonCategories";
 import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
-import MissingRow from "../MissingRow";
 
 export default function ListsTab({ lists, setLists, onOpenInfo }) {
   const [activeListId, setActiveListId] = useState(null);
@@ -15,15 +15,39 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
   const [view, setView] = useState("all");
 
   const { entities: pickEntities, status: pickStatus, loadMore, hasMore } = usePokedexEntities();
+  const { categories, status: categoriesStatus } = usePokemonCategories();
+  const [activeCategories, setActiveCategories] = useState(new Set());
 
   const activeList = lists.find((l) => l.id === activeListId);
 
-  const toggleListItem = (listId, dex) => {
+  const entityKey = (e) => e.id ?? String(e.dex);
+
+  const toggleListItem = (listId, key) => {
     setLists((prev) => prev.map((l) => {
       if (l.id !== listId) return l;
-      const has = l.checked.includes(dex);
-      return { ...l, checked: has ? l.checked.filter((d) => d !== dex) : [...l.checked, dex] };
+      const has = l.checked.includes(key);
+      return { ...l, checked: has ? l.checked.filter((k) => k !== key) : [...l.checked, key] };
     }));
+  };
+
+  const toggleCategory = (name) => {
+    const already = activeCategories.has(name);
+    setActiveCategories((prev) => {
+      const n = new Set(prev);
+      if (already) n.delete(name);
+      else n.add(name);
+      return n;
+    });
+    setNewListEntities((prev) => {
+      const n = new Map(prev);
+      const bucket = categories[name] || [];
+      if (already) {
+        for (const e of bucket) n.delete(entityKey(e));
+      } else {
+        for (const e of bucket) n.set(entityKey(e), e);
+      }
+      return n;
+    });
   };
 
   const createList = () => {
@@ -32,6 +56,7 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
     setLists((prev) => [...prev, { id, name: newListName.trim(), entities: [...newListEntities.values()], checked: [] }]);
     setNewListName("");
     setNewListEntities(new Map());
+    setActiveCategories(new Set());
     setCreating(false);
     setActiveListId(id);
   };
@@ -70,18 +95,34 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
       <div className="pc-create-panel">
         <button className="pc-back-btn" onClick={() => setCreating(false)}><ArrowLeft size={16} /> Back</button>
         <input type="text" placeholder="Name your list, e.g. Kanto Starters" value={newListName} onChange={(e) => setNewListName(e.target.value)} />
-        <p className="pc-modal-hint">Pick which Pokémon belong in this list:</p>
+        <p className="pc-modal-hint">Grab a whole set at once, then mix in more below:</p>
+        <div className="pc-category-row">
+          {Object.keys(categories).map((name) => (
+            <button
+              key={name}
+              type="button"
+              className={`pc-category-chip ${activeCategories.has(name) ? "on" : ""}`}
+              onClick={() => toggleCategory(name)}
+              disabled={categoriesStatus !== "done"}
+            >
+              {activeCategories.has(name) ? <Check size={13} /> : <Plus size={13} />} {name}
+            </button>
+          ))}
+        </div>
+        {categoriesStatus === "loading" && <p className="pc-loading">Loading categories…</p>}
+        <p className="pc-modal-hint">Or pick individual Pokémon:</p>
         <div className="pc-pick-grid">
           {pickEntities.map((e) => {
-            const on = newListEntities.has(e.dex);
+            const key = entityKey(e);
+            const on = newListEntities.has(key);
             return (
               <div
-                key={e.dex}
+                key={key}
                 className={`pc-pick-item ${on ? "on" : ""}`}
                 onClick={() => setNewListEntities((prev) => {
                   const n = new Map(prev);
-                  if (n.has(e.dex)) n.delete(e.dex);
-                  else n.set(e.dex, e);
+                  if (n.has(key)) n.delete(key);
+                  else n.set(key, e);
                   return n;
                 })}
               >
@@ -105,12 +146,12 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
 
   const filtered = activeList.entities.filter((e) => e.name.toLowerCase().includes(query.toLowerCase()));
   const visible = filtered.filter((e) => {
-    if (view === "collected") return activeList.checked.includes(e.dex);
-    if (view === "missing") return !activeList.checked.includes(e.dex);
+    const has = activeList.checked.includes(entityKey(e));
+    if (view === "collected") return has;
+    if (view === "missing") return !has;
     return true;
   });
   const done = activeList.checked.length;
-  const missing = activeList.entities.filter((e) => !activeList.checked.includes(e.dex));
 
   return (
     <>
@@ -127,25 +168,15 @@ export default function ListsTab({ lists, setLists, onOpenInfo }) {
       <div className="pc-grid">
         {visible.map((e, i) => (
           <EntityTile
-            key={e.dex}
+            key={entityKey(e)}
             entity={e}
             index={i}
-            checked={activeList.checked.includes(e.dex)}
-            onToggle={(dex) => toggleListItem(activeList.id, dex)}
+            checked={activeList.checked.includes(entityKey(e))}
+            onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity))}
             onOpenInfo={onOpenInfo}
           />
         ))}
       </div>
-      {view !== "missing" && (
-        <>
-          <h2 className="pc-section-title">Still missing</h2>
-          {missing.length === 0 ? (
-            <p className="pc-missing-empty">List complete — start another one!</p>
-          ) : missing.map((e) => (
-            <MissingRow key={e.dex} label={e.name} sub="Details" onClick={() => onOpenInfo({ entity: e })} />
-          ))}
-        </>
-      )}
     </>
   );
 }

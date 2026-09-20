@@ -4,7 +4,6 @@ import { usePokedexEntities } from "../../hooks/usePokedexEntities";
 import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
-import MissingRow from "../MissingRow";
 
 export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) {
   const { entities, status, loadMore, hasMore } = usePokedexEntities();
@@ -18,7 +17,6 @@ export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) 
     return true;
   });
   const done = entities.filter((e) => checkedEntities.has(e.dex)).length;
-  const missing = entities.filter((e) => !checkedEntities.has(e.dex));
 
   return (
     <>
@@ -39,17 +37,6 @@ export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) 
       {status === "error" && <p className="pc-error">Couldn't load the Pokédex.</p>}
       {hasMore && status !== "loading" && (
         <button className="pc-load-more" onClick={loadMore}>Load more Pokémon</button>
-      )}
-
-      {view !== "missing" && (
-        <>
-          <h2 className="pc-section-title">Still missing</h2>
-          {missing.length === 0 ? (
-            <p className="pc-missing-empty">Full Pokédex — legendary effort!</p>
-          ) : missing.map((e) => (
-            <MissingRow key={e.dex} label={e.name} sub="Details" onClick={() => onOpenInfo({ entity: e })} />
-          ))}
-        </>
       )}
     </>
   );

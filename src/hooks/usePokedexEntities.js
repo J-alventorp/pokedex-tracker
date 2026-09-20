@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchPokedexPage } from "../api/pokeApi";
 
 const PAGE_SIZE = 151;
@@ -8,6 +8,7 @@ export function usePokedexEntities() {
   const [entities, setEntities] = useState([]);
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState("loading");
+  const loadedRef = useRef(false);
 
   const loadPage = useCallback((nextOffset) => {
     setStatus("loading");
@@ -21,6 +22,8 @@ export function usePokedexEntities() {
   }, []);
 
   useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     loadPage(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

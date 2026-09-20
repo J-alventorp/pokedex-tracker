@@ -77,7 +77,7 @@ export default function App() {
 
       {tab === "pokemon" && <PokemonTab checkedCards={checkedCards} onToggleCard={toggleCard} onOpenInfo={setModal} />}
       {tab === "set" && <SetTab checkedCards={checkedCards} onToggleCard={toggleCard} onOpenInfo={setModal} />}
-      {tab === "dex" && <DexTab checkedEntities={checkedEntities} onToggleEntity={toggleEntity} onOpenInfo={setModal} />}
+      {tab === "dex" && <DexTab checkedEntities={checkedEntities} onToggleEntity={(entity) => toggleEntity(entity.dex)} onOpenInfo={setModal} />}
       {tab === "lists" && <ListsTab lists={lists} setLists={setLists} onOpenInfo={setModal} />}
 
       <InfoModal data={modal} onClose={() => setModal(null)} />
