@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
+import { useCardCountsByDex } from "../../hooks/useCardCountsByDex";
+import { toCardIdArray } from "../../utils";
 import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
 
-export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) {
+export default function DexTab({ checkedEntities, entityCardChoices, onToggleEntity, onOpenInfo }) {
   const { entities, status, loadMore, hasMore } = usePokedexEntities();
+  const cardCounts = useCardCountsByDex();
   const [query, setQuery] = useState("");
   const [view, setView] = useState("all");
 
@@ -36,6 +39,8 @@ export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) 
             entity={e}
             index={i}
             checked={checkedEntities.has(e.dex)}
+            collected={toCardIdArray(entityCardChoices[e.dex]).length}
+            total={cardCounts.get(e.dex)}
             onToggle={onToggleEntity}
             onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "dex" } })}
           />

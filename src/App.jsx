@@ -348,6 +348,7 @@ export default function App() {
           {tab === "dex" && (
             <DexTab
               checkedEntities={checkedEntities}
+              entityCardChoices={entityCardChoices}
               onToggleEntity={requestToggleEntity}
               onOpenInfo={setModal}
             />

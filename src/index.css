@@ -356,6 +356,17 @@ body::before {
 }
 .pc-checked-badge-br { top:auto; left:auto; bottom:8px; right:8px; }
 
+.pc-count-badge {
+  position:absolute; top:7px; left:7px; min-width:24px; height:22px; padding:0 6px; border-radius:11px;
+  background:#fff; color:var(--ink); border:2px solid var(--ink);
+  display:flex; align-items:center; justify-content:center; z-index:3;
+  font-family:'Baloo 2', sans-serif; font-size:10.5px; font-weight:800; letter-spacing:.2px;
+}
+.pc-count-badge.has {
+  background: linear-gradient(150deg, #57D17A, var(--green)); color:#fff; border-color: var(--green);
+  animation: pc-pop .45s var(--spring);
+}
+
 /* ---------- misc text ---------- */
 
 .pc-section-title {

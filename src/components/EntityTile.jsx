@@ -1,6 +1,6 @@
-import { Check, Info } from "lucide-react";
+import { Info } from "lucide-react";
 
-export default function EntityTile({ entity, checked, onToggle, onOpenInfo, index }) {
+export default function EntityTile({ entity, checked, collected, total, onToggle, onOpenInfo, index }) {
   const rotate = index % 2 === 0 ? "-1.2deg" : "1deg";
   return (
     <div
@@ -8,7 +8,9 @@ export default function EntityTile({ entity, checked, onToggle, onOpenInfo, inde
       style={{ transform: `rotate(${rotate})` }}
       onClick={() => onToggle(entity)}
     >
-      {checked && <span className="pc-checked-badge"><Check size={13} /></span>}
+      {typeof total === "number" && (
+        <span className={`pc-count-badge ${collected > 0 ? "has" : ""}`}>{collected}/{total}</span>
+      )}
       <button className="pc-info-btn" aria-label={`About ${entity.name}`} onClick={(e) => { e.stopPropagation(); onOpenInfo({ entity }); }}>
         <Info size={13} />
       </button>

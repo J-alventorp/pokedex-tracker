@@ -60,6 +60,26 @@ export async function fetchAllCardsByPokedexNumber(dex) {
   return cards.filter((c) => c.nationalPokedexNumbers?.includes(dex));
 }
 
+let cardCountsByDexPromise;
+
+// How many known printings exist for each Pokémon — computed once from the
+// already-loaded bundle so a whole grid of tiles can show "X/Y" without each
+// one doing its own lookup.
+export function getCardCountsByDex() {
+  if (!cardCountsByDexPromise) {
+    cardCountsByDexPromise = getAllCards().then((cards) => {
+      const counts = new Map();
+      for (const card of cards) {
+        for (const dex of card.nationalPokedexNumbers ?? []) {
+          counts.set(dex, (counts.get(dex) ?? 0) + 1);
+        }
+      }
+      return counts;
+    });
+  }
+  return cardCountsByDexPromise;
+}
+
 let cardsByIdPromise;
 
 function getCardsById() {

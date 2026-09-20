@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Check, Plus, Search } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
 import { usePokemonCategories } from "../../hooks/usePokemonCategories";
-import { entityKey } from "../../utils";
+import { useCardCountsByDex } from "../../hooks/useCardCountsByDex";
+import { entityKey, toCardIdArray } from "../../utils";
 import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
@@ -32,6 +33,7 @@ export default function ListsTab({
   const { entities: pickEntities, status: pickStatus, loadMore, hasMore } = usePokedexEntities();
   const { categories, status: categoriesStatus } = usePokemonCategories();
   const [activeCategories, setActiveCategories] = useState(new Set());
+  const cardCounts = useCardCountsByDex();
 
   const activeList = lists.find((l) => l.id === activeListId);
 
@@ -247,6 +249,8 @@ export default function ListsTab({
             entity={e}
             index={i}
             checked={activeList.checked.includes(entityKey(e))}
+            collected={toCardIdArray(activeList.cardChoices?.[entityKey(e)]).length}
+            total={cardCounts.get(e.dex)}
             onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity), entity.name)}
             onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "list", listId: activeList.id } })}
           />
