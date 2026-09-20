@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Check, Plus, Search } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
 import { usePokemonCategories } from "../../hooks/usePokemonCategories";
@@ -6,6 +6,7 @@ import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
 import ListCard from "../ListCard";
+import CardListView from "../CardListView";
 
 export default function ListsTab({
   lists,
@@ -16,6 +17,9 @@ export default function ListsTab({
   creating,
   setCreating,
   onDeleteList,
+  checkedCards,
+  onToggleCard,
+  onBack,
 }) {
   const [newListName, setNewListName] = useState("");
   const [newListEntities, setNewListEntities] = useState(new Map());
@@ -60,12 +64,18 @@ export default function ListsTab({
     setSaveError("");
   };
 
-  const resetDraft = () => {
+  const resetDraft = useCallback(() => {
     setNewListName("");
     setNewListEntities(new Map());
     setActiveCategories(new Set());
     setSaveError("");
-  };
+  }, []);
+
+  // The hardware back button closes the panel without going through
+  // cancelCreate, so clear the draft whenever the panel leaves the screen.
+  useEffect(() => {
+    if (!creating) resetDraft();
+  }, [creating, resetDraft]);
 
   const pickedCount = newListEntities.size;
   // Saving used to bail out silently when either of these was missing, which
@@ -88,10 +98,7 @@ export default function ListsTab({
     setActiveListId(id);
   };
 
-  const cancelCreate = () => {
-    resetDraft();
-    setCreating(false);
-  };
+  const cancelCreate = () => onBack();
 
   if (creating) {
     return (
@@ -165,11 +172,23 @@ export default function ListsTab({
     );
   }
 
+  if (activeList?.kind === "cards") {
+    return (
+      <CardListView
+        list={activeList}
+        checkedCards={checkedCards}
+        onToggleCard={onToggleCard}
+        onOpenInfo={onOpenInfo}
+        onBack={onBack}
+      />
+    );
+  }
+
   if (!activeList) {
     return (
       <div className="pc-lists-grid">
         {lists.map((l) => (
-          <ListCard key={l.id} list={l} onOpen={setActiveListId} onDelete={onDeleteList} />
+          <ListCard key={l.id} list={l} checkedCards={checkedCards} onOpen={setActiveListId} onDelete={onDeleteList} />
         ))}
         <div className="pc-new-list-card" onClick={() => setCreating(true)}>
           <Plus size={22} />
@@ -190,7 +209,7 @@ export default function ListsTab({
 
   return (
     <>
-      <button className="pc-back-btn" onClick={() => setActiveListId(null)}><ArrowLeft size={16} /> All lists</button>
+      <button className="pc-back-btn" onClick={onBack}><ArrowLeft size={16} /> All lists</button>
       <h2 className="pc-section-title">{activeList.name}</h2>
       <div className="pc-controls">
         <div className="pc-search">

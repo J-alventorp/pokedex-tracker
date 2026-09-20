@@ -1,5 +1,6 @@
 import { Plus, Sparkles } from "lucide-react";
 import ListCard from "../ListCard";
+import { listProgress } from "../../utils";
 
 const JUMP_TILES = [
   { key: "pokemon", icon: "⚡", title: "By Pokémon", blurb: "Every printing of your favourite" },
@@ -8,8 +9,8 @@ const JUMP_TILES = [
 ];
 
 export default function HomeTab({ lists, checkedCards, checkedEntities, onOpenList, onNewList, onDeleteList, onGoTo }) {
-  const listTotal = lists.reduce((sum, l) => sum + l.entities.length, 0);
-  const listDone = lists.reduce((sum, l) => sum + l.checked.length, 0);
+  const listTotal = lists.reduce((sum, l) => sum + listProgress(l, checkedCards).total, 0);
+  const listDone = lists.reduce((sum, l) => sum + listProgress(l, checkedCards).done, 0);
 
   const stats = [
     { value: checkedCards.size, label: checkedCards.size === 1 ? "card collected" : "cards collected", tone: "red" },
@@ -37,7 +38,7 @@ export default function HomeTab({ lists, checkedCards, checkedEntities, onOpenLi
       <h3 className="pc-section-title">⭐ Your lists</h3>
       <div className="pc-lists-grid">
         {lists.map((l) => (
-          <ListCard key={l.id} list={l} onOpen={onOpenList} onDelete={onDeleteList} />
+          <ListCard key={l.id} list={l} checkedCards={checkedCards} onOpen={onOpenList} onDelete={onDeleteList} />
         ))}
         <div className="pc-new-list-card" onClick={onNewList}>
           <Plus size={22} />

@@ -55,3 +55,26 @@ export async function fetchCardsByPokedexNumber(dex) {
   const cards = await getAllCards();
   return cards.filter((c) => c.nationalPokedexNumbers?.includes(dex)).slice(0, 60);
 }
+
+// Same filter as fetchCardsByPokedexNumber but without the 60-card cap — an
+// auto-list has to hold every printing (Pikachu alone has 211).
+export async function fetchAllCardsByPokedexNumber(dex) {
+  const cards = await getAllCards();
+  return cards.filter((c) => c.nationalPokedexNumbers?.includes(dex));
+}
+
+let cardsByIdPromise;
+
+function getCardsById() {
+  if (!cardsByIdPromise) {
+    cardsByIdPromise = getAllCards().then((cards) => new Map(cards.map((c) => [c.id, c])));
+  }
+  return cardsByIdPromise;
+}
+
+// Resolves a saved list's card ids back into card objects, dropping any id the
+// bundled data no longer knows about.
+export async function fetchCardsByIds(ids) {
+  const byId = await getCardsById();
+  return ids.map((id) => byId.get(id)).filter(Boolean);
+}

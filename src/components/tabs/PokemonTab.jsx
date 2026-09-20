@@ -5,8 +5,9 @@ import { rarityRank } from "../../utils";
 import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import CardTile from "../CardTile";
+import { AUTO_LIST_THRESHOLD, countTickedForDex } from "../../autoList";
 
-export default function PokemonTab({ checkedCards, onToggleCard, onOpenInfo }) {
+export default function PokemonTab({ checkedCards, onToggleCard, onOpenInfo, onAutoListCandidate }) {
   const [query, setQuery] = useState("Pikachu");
   const [view, setView] = useState("all");
   const [sort, setSort] = useState("name");
@@ -39,6 +40,19 @@ export default function PokemonTab({ checkedCards, onToggleCard, onOpenInfo }) {
       clearTimeout(timer);
     };
   }, [query]);
+
+  // Ticking a third card of one Pokémon starts a list for it. This lives in
+  // the handler rather than an effect on purpose: an effect would spawn lists
+  // just from searching a name you had already ticked cards for.
+  const handleToggle = (id) => {
+    const card = cards.find((c) => c.id === id);
+    const wasChecked = checkedCards.has(id);
+    onToggleCard(id);
+    if (!card || wasChecked) return;
+    for (const dex of card.nationalPokedexNumbers ?? []) {
+      if (countTickedForDex(cards, checkedCards, dex) + 1 >= AUTO_LIST_THRESHOLD) onAutoListCandidate?.(dex);
+    }
+  };
 
   const done = cards.filter((c) => checkedCards.has(c.id)).length;
   const visible = cards
@@ -83,7 +97,7 @@ export default function PokemonTab({ checkedCards, onToggleCard, onOpenInfo }) {
           ) : (
             <div className="pc-grid">
               {visible.map((c, i) => (
-                <CardTile key={c.id} card={c} index={i} checked={checkedCards.has(c.id)} onToggle={onToggleCard} onOpenInfo={onOpenInfo} />
+                <CardTile key={c.id} card={c} index={i} checked={checkedCards.has(c.id)} onToggle={handleToggle} onOpenInfo={onOpenInfo} />
               ))}
             </div>
           )}
