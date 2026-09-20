@@ -31,7 +31,7 @@ export default function InfoModal({ data, onClose }) {
   }, [data]);
 
   if (!data) return null;
-  const { entity, card } = data;
+  const { entity, card, selectedCardId, onSelectCard } = data;
 
   return (
     <div className="pc-modal-overlay" onClick={onClose}>
@@ -64,16 +64,30 @@ export default function InfoModal({ data, onClose }) {
               </div>
             </div>
             <div className="pc-modal-body">
-              <p className="pc-modal-hint">Known printings of {entity.name}:</p>
+              <p className="pc-modal-hint">
+                {onSelectCard ? `Tap the one you found of ${entity.name}:` : `Known printings of ${entity.name}:`}
+              </p>
               {status === "loading" && <p className="pc-modal-hint">Loading…</p>}
               {status === "error" && <p className="pc-modal-hint">Couldn't load printings.</p>}
               {status === "done" && related.length === 0 && <p className="pc-modal-hint">No cards logged yet for this one.</p>}
-              {related.map((c) => (
-                <div className="pc-modal-row" key={c.id}>
-                  <span>#{c.number} · {c.set?.name} · {c.set?.releaseDate?.slice(0, 4)}</span>
-                  <strong>{rarityBadge(c.rarity)} {c.variant || c.rarity || "Unknown"}</strong>
-                </div>
-              ))}
+              {related.map((c) => {
+                const selected = onSelectCard && c.id === selectedCardId;
+                return (
+                  <div
+                    className={`pc-modal-row ${onSelectCard ? "selectable" : ""} ${selected ? "selected" : ""}`}
+                    key={c.id}
+                    onClick={onSelectCard ? () => onSelectCard(selected ? null : c.id) : undefined}
+                  >
+                    <span className="pc-modal-row-info">
+                      <img className="pc-modal-row-thumb" src={c.images?.small} alt={c.name} loading="lazy" decoding="async" />
+                      #{c.number} · {c.set?.name} · {c.set?.releaseDate?.slice(0, 4)}
+                    </span>
+                    <strong>
+                      {selected && "✓ "}{rarityBadge(c.rarity)} {c.variant || c.rarity || "Unknown"}
+                    </strong>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}

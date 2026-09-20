@@ -19,6 +19,7 @@ export default function ListsTab({
   onDeleteList,
   checkedCards,
   onToggleCard,
+  onSetListItemCard,
   onBack,
 }) {
   const [newListName, setNewListName] = useState("");
@@ -39,7 +40,13 @@ export default function ListsTab({
     setLists((prev) => prev.map((l) => {
       if (l.id !== listId) return l;
       const has = l.checked.includes(key);
-      return { ...l, checked: has ? l.checked.filter((k) => k !== key) : [...l.checked, key] };
+      if (has) {
+        // Unticking means "not collected" — drop a stale card choice too.
+        const cardChoices = { ...(l.cardChoices || {}) };
+        delete cardChoices[key];
+        return { ...l, checked: l.checked.filter((k) => k !== key), cardChoices };
+      }
+      return { ...l, checked: [...l.checked, key] };
     }));
   };
 
@@ -92,7 +99,7 @@ export default function ListsTab({
       return;
     }
     const id = `l${Date.now()}`;
-    setLists((prev) => [...prev, { id, name: newListName.trim(), entities: [...newListEntities.values()], checked: [] }]);
+    setLists((prev) => [...prev, { id, name: newListName.trim(), entities: [...newListEntities.values()], checked: [], cardChoices: {} }]);
     resetDraft();
     setCreating(false);
     setActiveListId(id);
@@ -220,16 +227,24 @@ export default function ListsTab({
       </div>
       <ProgressBar done={done} total={activeList.entities.length} />
       <div className="pc-grid">
-        {visible.map((e, i) => (
-          <EntityTile
-            key={entityKey(e)}
-            entity={e}
-            index={i}
-            checked={activeList.checked.includes(entityKey(e))}
-            onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity))}
-            onOpenInfo={onOpenInfo}
-          />
-        ))}
+        {visible.map((e, i) => {
+          const key = entityKey(e);
+          return (
+            <EntityTile
+              key={key}
+              entity={e}
+              index={i}
+              checked={activeList.checked.includes(key)}
+              onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity))}
+              onOpenInfo={(data) => onOpenInfo({
+                ...data,
+                checked: activeList.checked.includes(key),
+                selectedCardId: activeList.cardChoices?.[key] ?? null,
+                onSelectCard: (cardId) => onSetListItemCard(activeList.id, key, cardId),
+              })}
+            />
+          );
+        })}
       </div>
     </>
   );

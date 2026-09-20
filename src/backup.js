@@ -1,7 +1,7 @@
 const BACKUP_APP = "pokemon-collection-tracker";
 const BACKUP_VERSION = 1;
 
-export function buildBackup({ checkedCards, checkedEntities, lists, autoListDismissed }) {
+export function buildBackup({ checkedCards, checkedEntities, entityCardChoices, lists, autoListDismissed }) {
   return {
     app: BACKUP_APP,
     version: BACKUP_VERSION,
@@ -9,6 +9,7 @@ export function buildBackup({ checkedCards, checkedEntities, lists, autoListDism
     // JSON.stringify(new Set()) is "{}", so spread every Set explicitly.
     checkedCards: [...checkedCards],
     checkedEntities: [...checkedEntities],
+    entityCardChoices: entityCardChoices || {},
     lists,
     autoListDismissed: [...autoListDismissed],
   };
@@ -47,9 +48,13 @@ export function parseBackup(text) {
   }
   // Last one wins, so a hand-edited file can't produce duplicate React keys.
   const byId = new Map(data.lists.map((l) => [l.id, l]));
+  const entityCardChoices = data.entityCardChoices && typeof data.entityCardChoices === "object" && !Array.isArray(data.entityCardChoices)
+    ? data.entityCardChoices
+    : {};
   return {
     checkedCards: data.checkedCards.filter((id) => typeof id === "string"),
     checkedEntities: data.checkedEntities.filter((d) => typeof d === "number"),
+    entityCardChoices,
     lists: [...byId.values()],
     autoListDismissed: data.autoListDismissed.filter((d) => typeof d === "number"),
   };

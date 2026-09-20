@@ -5,7 +5,7 @@ import ProgressBar from "../ProgressBar";
 import ViewToggle from "../ViewToggle";
 import EntityTile from "../EntityTile";
 
-export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) {
+export default function DexTab({ checkedEntities, entityCardChoices, onToggleEntity, onSelectEntityCard, onOpenInfo }) {
   const { entities, status, loadMore, hasMore } = usePokedexEntities();
   const [query, setQuery] = useState("");
   const [view, setView] = useState("all");
@@ -30,7 +30,21 @@ export default function DexTab({ checkedEntities, onToggleEntity, onOpenInfo }) 
 
       <ProgressBar done={done} total={entities.length} />
       <div className="pc-grid">
-        {visible.map((e, i) => <EntityTile key={e.dex} entity={e} index={i} checked={checkedEntities.has(e.dex)} onToggle={onToggleEntity} onOpenInfo={onOpenInfo} />)}
+        {visible.map((e, i) => (
+          <EntityTile
+            key={e.dex}
+            entity={e}
+            index={i}
+            checked={checkedEntities.has(e.dex)}
+            onToggle={onToggleEntity}
+            onOpenInfo={(data) => onOpenInfo({
+              ...data,
+              checked: checkedEntities.has(e.dex),
+              selectedCardId: entityCardChoices[e.dex] ?? null,
+              onSelectCard: (cardId) => onSelectEntityCard(e.dex, cardId),
+            })}
+          />
+        ))}
       </div>
 
       {status === "loading" && <p className="pc-loading">Loading Pokédex…</p>}

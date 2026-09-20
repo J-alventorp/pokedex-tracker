@@ -38,6 +38,7 @@ function defaultLists() {
       name: "Kanto Legends",
       entities: SEED_LIST_DEX.map((e) => makeEntity(e.dex, e.name)),
       checked: [],
+      cardChoices: {},
     },
   ];
 }
@@ -50,6 +51,7 @@ export default function App() {
   const [tab, setTab] = useState(restored?.tab ?? "home");
   const [checkedCards, setCheckedCards] = useLocalStorageState("pc_checkedCards", () => new Set());
   const [checkedEntities, setCheckedEntities] = useLocalStorageState("pc_checkedEntities", () => new Set());
+  const [entityCardChoices, setEntityCardChoices] = useLocalStorageState("pc_entityCardChoices", () => ({}));
   const [lists, setLists] = useLocalStorageState("pc_lists", defaultLists);
   const [autoDismissed, setAutoDismissed] = useLocalStorageState("pc_autoListDismissed", () => new Set());
   const [modal, setModal] = useState(null);
@@ -70,10 +72,34 @@ export default function App() {
 
   const toggleEntity = (dex) => setCheckedEntities((prev) => {
     const n = new Set(prev);
-    if (n.has(dex)) n.delete(dex);
-    else n.add(dex);
+    if (n.has(dex)) {
+      n.delete(dex);
+      // Unticking a Pokémon means "not collected" — a stale card choice
+      // would otherwise silently keep pointing at a printing you unset.
+      setEntityCardChoices((choices) => {
+        if (!(dex in choices)) return choices;
+        const { [dex]: _drop, ...rest } = choices;
+        return rest;
+      });
+    } else {
+      n.add(dex);
+    }
     return n;
   });
+
+  const setEntityCard = (dex, cardId) => {
+    setEntityCardChoices((prev) => {
+      if (cardId == null) {
+        if (!(dex in prev)) return prev;
+        const { [dex]: _drop, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [dex]: cardId };
+    });
+    if (cardId != null) {
+      setCheckedEntities((prev) => (prev.has(dex) ? prev : new Set(prev).add(dex)));
+    }
+  };
 
   // --- Back-button history ---------------------------------------------------
   const snapshot = useMemo(
@@ -187,10 +213,22 @@ export default function App() {
     }
   };
 
+  const setListItemCard = (listId, key, cardId) => {
+    setLists((prev) => prev.map((l) => {
+      if (l.id !== listId) return l;
+      const cardChoices = { ...(l.cardChoices || {}) };
+      if (cardId == null) delete cardChoices[key];
+      else cardChoices[key] = cardId;
+      const checked = cardId != null && !l.checked.includes(key) ? [...l.checked, key] : l.checked;
+      return { ...l, cardChoices, checked };
+    }));
+  };
+
   // --- Backup ----------------------------------------------------------------
   const applyImport = (backup) => {
     setCheckedCards(new Set(backup.checkedCards));
     setCheckedEntities(new Set(backup.checkedEntities));
+    setEntityCardChoices(backup.entityCardChoices ?? {});
     setLists(backup.lists);
     setAutoDismissed(new Set(backup.autoListDismissed));
     setActiveListId(null);
@@ -227,7 +265,7 @@ export default function App() {
 
       {settings ? (
         <SettingsPanel
-          data={{ checkedCards, checkedEntities, lists, autoListDismissed: autoDismissed }}
+          data={{ checkedCards, checkedEntities, entityCardChoices, lists, autoListDismissed: autoDismissed }}
           onImport={applyImport}
           onRequestConfirm={setConfirm}
           onBack={goBack}
@@ -254,7 +292,15 @@ export default function App() {
             />
           )}
           {tab === "set" && <SetTab checkedCards={checkedCards} onToggleCard={toggleCard} onOpenInfo={setModal} />}
-          {tab === "dex" && <DexTab checkedEntities={checkedEntities} onToggleEntity={(entity) => toggleEntity(entity.dex)} onOpenInfo={setModal} />}
+          {tab === "dex" && (
+            <DexTab
+              checkedEntities={checkedEntities}
+              entityCardChoices={entityCardChoices}
+              onToggleEntity={(entity) => toggleEntity(entity.dex)}
+              onSelectEntityCard={setEntityCard}
+              onOpenInfo={setModal}
+            />
+          )}
           {tab === "lists" && (
             <ListsTab
               lists={lists}
@@ -267,6 +313,7 @@ export default function App() {
               onDeleteList={requestDeleteList}
               checkedCards={checkedCards}
               onToggleCard={toggleCard}
+              onSetListItemCard={setListItemCard}
               onBack={goBack}
             />
           )}
