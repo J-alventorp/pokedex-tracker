@@ -410,7 +410,6 @@ body::before {
 .pc-modal-row-info { display:flex; align-items:center; gap:8px; }
 .pc-modal-row-thumb { width:36px; height:50px; object-fit:contain; border-radius:4px; flex:none; }
 .pc-modal-row.selectable { cursor:pointer; border-radius:8px; margin:0 -8px; padding:8px; }
-.pc-modal-row.selectable:hover { background:#FFF3C9; }
 .pc-modal-row.selected { background:#E4F5E8; border:2px solid #2E8B45; margin:0 -8px; padding:6px 8px; }
 .pc-modal-hint { font-size:13px; color:var(--sub); margin: 4px 0 8px; }
 
