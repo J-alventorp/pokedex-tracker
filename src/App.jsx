@@ -384,7 +384,7 @@ export default function App() {
       <div className="pc-header">
         <h1 className="pc-title">
           <span className="pc-title-ball" aria-hidden="true" />
-          My Card Collection
+          MasterDex
         </h1>
         <button className="pc-icon-btn" aria-label="Settings" onClick={() => setSettings(true)}>
           <Settings size={18} />

@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'My Card Collection',
-        short_name: 'Card Collection',
+        name: 'MasterDex',
+        short_name: 'MasterDex',
         description: 'Track your Pokemon TCG card collection',
         start_url: '/pokedex-tracker/',
         scope: '/pokedex-tracker/',
