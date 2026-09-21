@@ -9,7 +9,8 @@ import { useCallback, useEffect, useRef } from "react";
 // entry for "closed" and back would re-open what was just dismissed.
 
 function navKey(s) {
-  const modal = s.modal ? (s.modal.card ? `c:${s.modal.card.id}` : `e:${s.modal.entity?.dex}`) : "";
+  const entity = s.modal?.entity;
+  const modal = s.modal ? (s.modal.card ? `c:${s.modal.card.id}` : `e:${entity?.id ?? entity?.dex}`) : "";
   return [s.tab, s.activeListId ?? "", s.creating ? 1 : 0, s.settings ? 1 : 0, modal, s.confirm ? 1 : 0].join("|");
 }
 

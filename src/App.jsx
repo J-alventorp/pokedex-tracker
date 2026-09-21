@@ -9,6 +9,8 @@ import { autoListId, buildCardList } from "./autoList";
 import InfoModal from "./components/InfoModal";
 import ConfirmDialog from "./components/ConfirmDialog";
 import SettingsPanel from "./components/SettingsPanel";
+import BackToTop from "./components/BackToTop";
+import StatModal from "./components/StatModal";
 import HomeTab from "./components/tabs/HomeTab";
 import PokemonTab from "./components/tabs/PokemonTab";
 import SetTab from "./components/tabs/SetTab";
@@ -56,16 +58,16 @@ function migrateListEntityState(lists, checkedEntities, entityCardChoices) {
     for (const key of l.checked ?? []) {
       const entity = (l.entities ?? []).find((e) => entityKey(e) === key);
       if (!entity) continue;
-      if (!nextChecked.has(entity.dex)) {
+      if (!nextChecked.has(key)) {
         if (nextChecked === checkedEntities) nextChecked = new Set(checkedEntities);
-        nextChecked.add(entity.dex);
+        nextChecked.add(key);
       }
     }
     for (const [key, val] of Object.entries(l.cardChoices ?? {})) {
       const entity = (l.entities ?? []).find((e) => entityKey(e) === key);
-      if (!entity || entity.dex in nextChoices) continue;
+      if (!entity || key in nextChoices) continue;
       if (nextChoices === entityCardChoices) nextChoices = { ...entityCardChoices };
-      nextChoices[entity.dex] = val;
+      nextChoices[key] = val;
     }
   }
 
@@ -97,6 +99,7 @@ export default function App() {
   const [settings, setSettings] = useState(restored?.settings ?? false);
   const [confirm, setConfirm] = useState(null);
   const [toast, setToast] = useState(null);
+  const [statModal, setStatModal] = useState(null);
   // Set by openList/startNewList when they're jumping straight from Home into
   // a list-level screen, skipping the lists index — applied one tick later so
   // the index still gets its own history entry (see those functions below).
@@ -115,6 +118,19 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // checkedEntities used to hold raw dex numbers. Now that Mega forms need
+  // their own key (see entityKey), it holds entityKey strings instead — a
+  // save from before this change would have numbers in it, which would never
+  // match a string key again and read as "nothing collected". Coerce once.
+  const entityKeysMigratedRef = useRef(false);
+  useEffect(() => {
+    if (entityKeysMigratedRef.current) return;
+    entityKeysMigratedRef.current = true;
+    if (![...checkedEntities].some((v) => typeof v === "number")) return;
+    setCheckedEntities(new Set([...checkedEntities].map((v) => String(v))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggleCard = (id) => setCheckedCards((prev) => {
     const n = new Set(prev);
     if (n.has(id)) n.delete(id);
@@ -122,36 +138,42 @@ export default function App() {
     return n;
   });
 
-  const toggleEntity = (dex) => setCheckedEntities((prev) => {
-    const n = new Set(prev);
-    if (n.has(dex)) {
-      n.delete(dex);
-      // Unticking a Pokémon means "not collected" — a stale card choice
-      // would otherwise silently keep pointing at a printing you unset.
-      setEntityCardChoices((choices) => {
-        if (!(dex in choices)) return choices;
-        const { [dex]: _drop, ...rest } = choices;
-        return rest;
-      });
-    } else {
-      n.add(dex);
-    }
-    return n;
-  });
+  // Keyed by entityKey(entity), not raw dex — a base Pokémon and its Mega
+  // forms share a dex number but must be collectible independently.
+  const toggleEntity = (entity) => {
+    const key = entityKey(entity);
+    setCheckedEntities((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) {
+        n.delete(key);
+        // Unticking a Pokémon means "not collected" — a stale card choice
+        // would otherwise silently keep pointing at a printing you unset.
+        setEntityCardChoices((choices) => {
+          if (!(key in choices)) return choices;
+          const { [key]: _drop, ...rest } = choices;
+          return rest;
+        });
+      } else {
+        n.add(key);
+      }
+      return n;
+    });
+  };
 
-  const toggleEntityCard = (dex, cardId) => {
-    const current = toCardIdArray(entityCardChoices[dex]);
+  const toggleEntityCard = (entity, cardId) => {
+    const key = entityKey(entity);
+    const current = toCardIdArray(entityCardChoices[key]);
     const adding = !current.includes(cardId);
     setEntityCardChoices((prev) => {
       const next = adding ? [...current, cardId] : current.filter((id) => id !== cardId);
       if (next.length === 0) {
-        const { [dex]: _drop, ...rest } = prev;
+        const { [key]: _drop, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [dex]: next };
+      return { ...prev, [key]: next };
     });
     if (adding) {
-      setCheckedEntities((prev) => (prev.has(dex) ? prev : new Set(prev).add(dex)));
+      setCheckedEntities((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
     }
   };
 
@@ -183,12 +205,12 @@ export default function App() {
   // from — and write to — the exact same store; there's no per-context branch.
   let modalData = modal;
   if (modal?.entity) {
-    const dex = modal.entity.dex;
+    const key = entityKey(modal.entity);
     modalData = {
       ...modal,
-      checked: checkedEntities.has(dex),
-      selectedCardIds: toCardIdArray(entityCardChoices[dex]),
-      onToggleCardChoice: (cardId) => toggleEntityCard(dex, cardId),
+      checked: checkedEntities.has(key),
+      selectedCardIds: toCardIdArray(entityCardChoices[key]),
+      onToggleCardChoice: (cardId) => toggleEntityCard(modal.entity, cardId),
     };
   }
 
@@ -276,8 +298,8 @@ export default function App() {
   };
 
   const requestToggleEntity = (entity) => {
-    if (!checkedEntities.has(entity.dex)) {
-      toggleEntity(entity.dex);
+    if (!checkedEntities.has(entityKey(entity))) {
+      toggleEntity(entity);
       return;
     }
     setConfirm({
@@ -285,7 +307,7 @@ export default function App() {
       message: `${entity.name} will no longer be marked as collected, and any cards you picked for it will be cleared.`,
       confirmLabel: "Remove",
       tone: "danger",
-      onConfirm: () => toggleEntity(entity.dex),
+      onConfirm: () => toggleEntity(entity),
     });
   };
 
@@ -304,14 +326,24 @@ export default function App() {
   // --- Auto lists ------------------------------------------------------------
   const autoInFlight = useRef(new Set());
 
-  const handleAutoListCandidate = async (dex) => {
-    if (autoDismissed.has(dex)) return;
+  // `force` is set by the explicit "Save as list" button on By Pokémon —
+  // unlike the automatic 3-tick trigger, a deliberate click should work even
+  // if the suggestion was previously dismissed, and should say so instead of
+  // silently no-oping when the list already exists.
+  const handleAutoListCandidate = async (dex, { force = false } = {}) => {
+    if (!force && autoDismissed.has(dex)) return;
     if (autoInFlight.current.has(dex)) return;
-    if (lists.some((l) => l.id === autoListId(dex))) return;
+    if (lists.some((l) => l.id === autoListId(dex))) {
+      if (force) setToast("Already saved as a list");
+      return;
+    }
     autoInFlight.current.add(dex);
     try {
       const all = await fetchAllCardsByPokedexNumber(dex);
-      if (all.length === 0) return;
+      if (all.length === 0) {
+        if (force) setToast("No known cards for this Pokémon yet");
+        return;
+      }
       const list = buildCardList(dex, all);
       setLists((prev) => {
         // The real guard against a double create: two awaits can both pass the
@@ -392,6 +424,7 @@ export default function App() {
               onNewList={startNewList}
               onDeleteList={requestDeleteList}
               onGoTo={goToTab}
+              onOpenStat={setStatModal}
             />
           )}
           {tab === "pokemon" && (
@@ -434,7 +467,9 @@ export default function App() {
 
       <InfoModal data={modalData} onClose={closeModal} />
       <ConfirmDialog data={confirm} onConfirm={confirmAndClose} onCancel={goBack} />
+      <StatModal type={statModal} checkedCards={checkedCards} checkedEntities={checkedEntities} onClose={() => setStatModal(null)} />
       {toast && <div className="pc-toast" role="status">{toast}</div>}
+      <BackToTop />
     </div>
   );
 }

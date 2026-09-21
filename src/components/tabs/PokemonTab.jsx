@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { BookmarkPlus, ChevronDown, Search } from "lucide-react";
 import { fetchCardsByName } from "../../api/pokemonTcg";
 import { rarityRank } from "../../utils";
 import ProgressBar from "../ProgressBar";
@@ -54,6 +54,17 @@ export default function PokemonTab({ checkedCards, onToggleCard, onOpenInfo, onA
     }
   };
 
+  // Only the first pokedex number on each card — a tag-team/GX card like
+  // "Pikachu & Zekrom-GX" lists both, and Zekrom is not what "save as list"
+  // for a Pikachu search should create. The searched name can still span more
+  // than one dex (e.g. "Pikachu" and "Pikachu V" if both matched), so it's a
+  // set, not a single value.
+  const searchedDexes = [...new Set(cards.map((c) => c.nationalPokedexNumbers?.[0]).filter(Boolean))];
+
+  const handleSaveAsList = () => {
+    for (const dex of searchedDexes) onAutoListCandidate?.(dex, { force: true });
+  };
+
   const done = cards.filter((c) => checkedCards.has(c.id)).length;
   const visible = cards
     .filter((c) => {
@@ -83,6 +94,14 @@ export default function PokemonTab({ checkedCards, onToggleCard, onOpenInfo, onA
           <ChevronDown className="pc-select-icon" size={15} />
         </div>
         <ViewToggle view={view} setView={setView} />
+        <button
+          type="button"
+          className="pc-save-list-btn"
+          onClick={handleSaveAsList}
+          disabled={searchedDexes.length === 0}
+        >
+          <BookmarkPlus size={15} /> Save as list
+        </button>
       </div>
 
       {status === "loading" && <p className="pc-loading">Searching the Pokémon TCG…</p>}

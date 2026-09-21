@@ -99,7 +99,7 @@ export function listProgress(list, checkedCards, checkedEntities) {
     return { done: cardIds.filter((id) => checkedCards.has(id)).length, total: cardIds.length };
   }
   const entities = list.entities ?? [];
-  const done = checkedEntities ? entities.filter((e) => checkedEntities.has(e.dex)).length : 0;
+  const done = checkedEntities ? entities.filter((e) => checkedEntities.has(entityKey(e))).length : 0;
   return { done, total: entities.length };
 }
 

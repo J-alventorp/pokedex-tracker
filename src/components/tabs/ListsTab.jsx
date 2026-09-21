@@ -41,7 +41,7 @@ export default function ListsTab({
 
   const activeList = lists.find((l) => l.id === activeListId);
   const visibleEntities = (activeList?.entities ?? []).filter((e) => {
-    const has = checkedEntities.has(e.dex);
+    const has = checkedEntities.has(entityKey(e));
     if (view === "collected") return has;
     if (view === "missing") return !has;
     return true;
@@ -65,8 +65,9 @@ export default function ListsTab({
       setHighlightDex(null);
       return;
     }
-    setHighlightDex(match.dex);
-    tileRefs.current.get(match.dex)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const key = entityKey(match);
+    setHighlightDex(key);
+    tileRefs.current.get(key)?.scrollIntoView({ behavior: "smooth", block: "center" });
     const t = setTimeout(() => setHighlightDex(null), 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,7 +228,7 @@ export default function ListsTab({
     );
   }
 
-  const done = activeList.entities.filter((e) => checkedEntities.has(e.dex)).length;
+  const done = activeList.entities.filter((e) => checkedEntities.has(entityKey(e))).length;
 
   return (
     <>
@@ -242,23 +243,26 @@ export default function ListsTab({
       </div>
       <ProgressBar done={done} total={activeList.entities.length} />
       <div className="pc-grid">
-        {visibleEntities.map((e, i) => (
-          <EntityTile
-            key={entityKey(e)}
-            ref={(node) => {
-              if (node) tileRefs.current.set(e.dex, node);
-              else tileRefs.current.delete(e.dex);
-            }}
-            entity={e}
-            index={i}
-            checked={checkedEntities.has(e.dex)}
-            collected={toCardIdArray(entityCardChoices[e.dex]).length}
-            total={cardCounts.get(e.dex)}
-            highlighted={highlightDex === e.dex}
-            onToggle={onToggleEntity}
-            onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "list", listId: activeList.id } })}
-          />
-        ))}
+        {visibleEntities.map((e, i) => {
+          const key = entityKey(e);
+          return (
+            <EntityTile
+              key={key}
+              ref={(node) => {
+                if (node) tileRefs.current.set(key, node);
+                else tileRefs.current.delete(key);
+              }}
+              entity={e}
+              index={i}
+              checked={checkedEntities.has(key)}
+              collected={toCardIdArray(entityCardChoices[key]).length}
+              total={cardCounts.get(e.dex)}
+              highlighted={highlightDex === key}
+              onToggle={onToggleEntity}
+              onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "list", listId: activeList.id } })}
+            />
+          );
+        })}
       </div>
     </>
   );

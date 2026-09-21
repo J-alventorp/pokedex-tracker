@@ -8,14 +8,14 @@ const JUMP_TILES = [
   { key: "dex", icon: "📕", title: "Pokédex", blurb: "Tick off all 1025 Pokémon" },
 ];
 
-export default function HomeTab({ lists, checkedCards, checkedEntities, onOpenList, onNewList, onDeleteList, onGoTo }) {
+export default function HomeTab({ lists, checkedCards, checkedEntities, onOpenList, onNewList, onDeleteList, onGoTo, onOpenStat }) {
   const listTotal = lists.reduce((sum, l) => sum + listProgress(l, checkedCards, checkedEntities).total, 0);
   const listDone = lists.reduce((sum, l) => sum + listProgress(l, checkedCards, checkedEntities).done, 0);
 
   const stats = [
-    { value: checkedCards.size, label: checkedCards.size === 1 ? "card collected" : "cards collected", tone: "red" },
-    { value: checkedEntities.size, label: checkedEntities.size === 1 ? "Pokémon caught" : "Pokémon caught", tone: "blue" },
-    { value: `${listDone}/${listTotal}`, label: lists.length === 1 ? "on 1 list" : `across ${lists.length} lists`, tone: "green" },
+    { value: checkedCards.size, label: checkedCards.size === 1 ? "card collected" : "cards collected", tone: "red", onClick: () => onOpenStat("cards") },
+    { value: checkedEntities.size, label: "Pokémon caught", tone: "blue", onClick: () => onOpenStat("pokemon") },
+    { value: `${listDone}/${listTotal}`, label: lists.length === 1 ? "on 1 list" : `across ${lists.length} lists`, tone: "green", onClick: () => onGoTo("lists") },
   ];
 
   return (
@@ -27,10 +27,10 @@ export default function HomeTab({ lists, checkedCards, checkedEntities, onOpenLi
         </div>
         <div className="pc-stat-row">
           {stats.map((s) => (
-            <div className={`pc-stat pc-stat-${s.tone}`} key={s.label}>
+            <button type="button" className={`pc-stat pc-stat-${s.tone}`} key={s.label} onClick={s.onClick}>
               <span className="pc-stat-value">{s.value}</span>
               <span className="pc-stat-label">{s.label}</span>
-            </div>
+            </button>
           ))}
         </div>
       </section>

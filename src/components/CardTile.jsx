@@ -1,13 +1,24 @@
 import { Check, Info } from "lucide-react";
 import { isHoloRarity, rarityBadge, rarityTier } from "../utils";
 
+// The 30th Celebration set (and its Classic Collection reprints) carries
+// rarity strings ("Special Illustration Rare", "Rare Secret"…) that trigger
+// the sweeping shine/rainbow-border effect meant for genuinely rare pulls —
+// wrong here, since every Celebration card should read as a plain, equal
+// commemorative print instead of implying some are rarer than others.
+function isCelebrationSet(card) {
+  return !!card.set?.id?.startsWith("me55");
+}
+
 export default function CardTile({ card, checked, onToggle, onOpenInfo, index }) {
   const rotate = index % 2 === 0 ? "-1deg" : "1.2deg";
-  const holo = isHoloRarity(card.rarity);
+  const celebration = isCelebrationSet(card);
+  const holo = !celebration && isHoloRarity(card.rarity);
+  const tier = celebration ? "common" : rarityTier(card.rarity);
   return (
     <div
       className={`pc-ctile ${checked ? "checked" : ""} ${holo ? "holo" : ""}`}
-      data-tier={rarityTier(card.rarity)}
+      data-tier={tier}
       style={{ transform: `rotate(${rotate})` }}
       onClick={() => onToggle(card.id)}
     >

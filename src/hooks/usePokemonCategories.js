@@ -31,6 +31,14 @@ function stripInfix(name, suffixes) {
   return null;
 }
 
+// "charizard-mega-x" -> "Mega Charizard X"; "diancie-mega" -> "Mega Diancie".
+function formatFormName(entryName, label, baseName) {
+  if (label !== "Mega") return entryName.split("-").map((w) => capitalize(w)).join(" ");
+  const variant = entryName.slice(baseName.length).replace(/^-mega-?/, "");
+  const base = formatPokemonName(baseName);
+  return variant ? `Mega ${base} ${variant.toUpperCase()}` : `Mega ${base}`;
+}
+
 function buildCategories(all) {
   const idByName = new Map(all.map((e) => [e.name, e.id]));
   const categories = { "Whole Pokédex": [] };
@@ -52,7 +60,7 @@ function buildCategories(all) {
       categories[cat.label].push({
         id: entry.name,
         dex: baseDex,
-        name: entry.name.split("-").map((w) => capitalize(w)).join(" "),
+        name: formatFormName(entry.name, cat.label, baseName),
         sprite: spriteUrl(baseDex),
         spriteSmall: spriteUrlSmall(baseDex),
       });
@@ -96,4 +104,31 @@ export function usePokemonCategories() {
   }, []);
 
   return { categories, status };
+}
+
+// Just the Mega entries, for splicing into the Pokédex tab so Mega
+// Evolutions are visible and collectible in their own right instead of only
+// existing as a bulk-add category when creating a list.
+export function useMegaEntities() {
+  const [entities, setEntities] = useState([]);
+  const [status, setStatus] = useState("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllPokemonNames()
+      .then((all) => {
+        if (!cancelled) {
+          setEntities(buildCategories(all).Mega ?? []);
+          setStatus("done");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { entities, status };
 }

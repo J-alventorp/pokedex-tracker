@@ -122,7 +122,11 @@ async function main() {
   for (const [i, set] of rawSets.entries()) {
     const setFile = path.join(CARDS_DIR, `${set.id}.json`);
     const existing = await readJsonIfExists(setFile);
-    if (existing) {
+    // set.total (not printedTotal) is the API's count of every card it knows
+    // about for the set, secret rares included — an existing file with fewer
+    // cards than that means the set grew (or was corrected) since we last
+    // fetched it, and skipping it would keep re-bundling stale, incomplete data.
+    if (existing && dedupeById(existing).length >= (set.total ?? 0)) {
       const deduped = dedupeById(existing);
       if (deduped.length !== existing.length) {
         await writeFile(setFile, JSON.stringify(deduped));
@@ -132,6 +136,9 @@ async function main() {
       }
       allCards.push(...deduped);
       continue;
+    }
+    if (existing) {
+      console.log(`Refetching ${set.name} (${i + 1}/${rawSets.length}) — had ${dedupeById(existing).length}/${set.total} cards`);
     }
     console.log(`Fetching cards for ${set.name} (${i + 1}/${rawSets.length})…`);
     const rawCards = await fetchAllCardsForSet(set.id);
