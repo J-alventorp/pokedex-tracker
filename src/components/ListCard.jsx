@@ -2,8 +2,8 @@ import { Trash2 } from "lucide-react";
 import ProgressBar from "./ProgressBar";
 import { listProgress, listUnitLabel } from "../utils";
 
-export default function ListCard({ list, checkedCards, onOpen, onDelete }) {
-  const { done, total } = listProgress(list, checkedCards);
+export default function ListCard({ list, checkedCards, checkedEntities, onOpen, onDelete }) {
+  const { done, total } = listProgress(list, checkedCards, checkedEntities);
   const pct = total ? Math.round((done / total) * 100) : 0;
   const isCards = (list.kind ?? "entities") === "cards";
   // Card lists carry their own thumbnail urls so this tile never has to fetch.

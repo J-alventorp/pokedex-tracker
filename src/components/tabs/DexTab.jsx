@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
 import { useCardCountsByDex } from "../../hooks/useCardCountsByDex";
@@ -12,14 +12,35 @@ export default function DexTab({ checkedEntities, entityCardChoices, onToggleEnt
   const cardCounts = useCardCountsByDex();
   const [query, setQuery] = useState("");
   const [view, setView] = useState("all");
+  const [highlightDex, setHighlightDex] = useState(null);
+  const tileRefs = useRef(new Map());
 
-  const filtered = entities.filter((e) => e.name.toLowerCase().includes(query.toLowerCase()));
-  const visible = filtered.filter((e) => {
+  const visible = entities.filter((e) => {
     if (view === "collected") return checkedEntities.has(e.dex);
     if (view === "missing") return !checkedEntities.has(e.dex);
     return true;
   });
   const done = entities.filter((e) => checkedEntities.has(e.dex)).length;
+
+  // Searching doesn't hide the rest of the grid — it scrolls to and briefly
+  // highlights the match so you can keep browsing from there.
+  useEffect(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      setHighlightDex(null);
+      return;
+    }
+    const match = visible.find((e) => e.name.toLowerCase().includes(q));
+    if (!match) {
+      setHighlightDex(null);
+      return;
+    }
+    setHighlightDex(match.dex);
+    tileRefs.current.get(match.dex)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => setHighlightDex(null), 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   return (
     <>
@@ -36,11 +57,16 @@ export default function DexTab({ checkedEntities, entityCardChoices, onToggleEnt
         {visible.map((e, i) => (
           <EntityTile
             key={e.dex}
+            ref={(node) => {
+              if (node) tileRefs.current.set(e.dex, node);
+              else tileRefs.current.delete(e.dex);
+            }}
             entity={e}
             index={i}
             checked={checkedEntities.has(e.dex)}
             collected={toCardIdArray(entityCardChoices[e.dex]).length}
             total={cardCounts.get(e.dex)}
+            highlighted={highlightDex === e.dex}
             onToggle={onToggleEntity}
             onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "dex" } })}
           />

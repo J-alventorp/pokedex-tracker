@@ -1,3 +1,5 @@
+import { formatPokemonName } from "../pokemonNames";
+
 const BASE_URL = "https://pokeapi.co/api/v2";
 
 // Full-resolution artwork — several hundred KB per image, so only use it where
@@ -17,7 +19,7 @@ export function capitalize(name) {
 }
 
 export function makeEntity(dex, name) {
-  return { dex, name: capitalize(name), sprite: spriteUrl(dex), spriteSmall: spriteUrlSmall(dex) };
+  return { dex, name: formatPokemonName(name), sprite: spriteUrl(dex), spriteSmall: spriteUrlSmall(dex) };
 }
 
 export async function fetchPokedexPage(limit, offset) {

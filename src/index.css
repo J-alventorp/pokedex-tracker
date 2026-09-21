@@ -274,6 +274,15 @@ body::before {
   border-color: var(--green);
   box-shadow: 0 4px 0 rgba(46,139,69,.35);
 }
+.pc-etile-highlight {
+  animation: pc-etile-pulse 1.5s ease-out 1;
+  outline: 3px solid var(--yellow, #F0B429);
+  outline-offset: 2px;
+}
+@keyframes pc-etile-pulse {
+  0% { box-shadow: 0 0 0 6px rgba(240,180,41,.55); }
+  100% { box-shadow: 0 0 0 0 rgba(240,180,41,0); }
+}
 .pc-etile-icon { display:flex; justify-content:center; margin-bottom:8px; }
 .pc-etile-img { width:70px; height:70px; object-fit:contain; filter: drop-shadow(0 3px 3px rgba(43,35,24,.22)); }
 .pc-etile-dex { font-size:11px; color:var(--sub); font-weight:700; letter-spacing:.4px; }

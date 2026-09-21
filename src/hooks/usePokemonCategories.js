@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { capitalize, fetchAllPokemonNames, spriteUrl, spriteUrlSmall } from "../api/pokeApi";
+import { formatPokemonName } from "../pokemonNames";
 
 const MAX_BASE_DEX = 1025;
 
@@ -24,16 +25,12 @@ function buildCategories(all) {
 
   for (const entry of all) {
     if (!entry.id) continue;
-    if (entry.id <= MAX_BASE_DEX && !entry.name.includes("-")) {
-      categories["Whole Pokédex"].push({
-        id: String(entry.id),
-        dex: entry.id,
-        name: capitalize(entry.name),
-        sprite: spriteUrl(entry.id),
-        spriteSmall: spriteUrlSmall(entry.id),
-      });
-      continue;
-    }
+    // Check form-variant suffixes first. Only names that actually match one
+    // (e.g. "charizard-mega-x") get treated as a variant — a plain species
+    // name that merely happens to contain a hyphen (mr-mime, ho-oh,
+    // porygon-z, tapu-koko, nidoran-m…) falls through to "Whole Pokédex"
+    // below instead of being silently dropped from every category.
+    let matchedForm = false;
     for (const cat of FORM_CATEGORIES) {
       const baseName = stripSuffix(entry.name, cat.suffixes);
       if (baseName === null) continue;
@@ -46,7 +43,18 @@ function buildCategories(all) {
         sprite: spriteUrl(baseDex),
         spriteSmall: spriteUrlSmall(baseDex),
       });
+      matchedForm = true;
       break;
+    }
+    if (matchedForm) continue;
+    if (entry.id <= MAX_BASE_DEX) {
+      categories["Whole Pokédex"].push({
+        id: String(entry.id),
+        dex: entry.id,
+        name: formatPokemonName(entry.name),
+        sprite: spriteUrl(entry.id),
+        spriteSmall: spriteUrlSmall(entry.id),
+      });
     }
   }
 

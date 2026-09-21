@@ -89,18 +89,18 @@ export function rarityTier(rarity = "") {
   return "common";
 }
 
-// Lists come in two shapes: the original Pokémon lists (entities + their own
-// checked keys) and auto-created card lists, whose checked state lives in the
-// global checkedCards set so a tick is the same action everywhere.
-export function listProgress(list, checkedCards) {
+// Lists come in two shapes: entity-based lists (Pokémon, checked against the
+// global checkedEntities set so a tick is the same action everywhere — in a
+// list, the Pokédex tab, or "By Pokémon") and auto-created card lists, whose
+// checked state lives in the global checkedCards set.
+export function listProgress(list, checkedCards, checkedEntities) {
   if ((list.kind ?? "entities") === "cards") {
     const cardIds = list.cardIds ?? [];
     return { done: cardIds.filter((id) => checkedCards.has(id)).length, total: cardIds.length };
   }
   const entities = list.entities ?? [];
-  const keys = new Set(entities.map((e) => e.id ?? String(e.dex)));
-  // Filter by keys so a stale entry can't push progress past 100%.
-  return { done: (list.checked ?? []).filter((k) => keys.has(k)).length, total: entities.length };
+  const done = checkedEntities ? entities.filter((e) => checkedEntities.has(e.dex)).length : 0;
+  return { done, total: entities.length };
 }
 
 export function listUnitLabel(list) {

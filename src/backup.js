@@ -23,7 +23,9 @@ function isValidList(l) {
   if (!l || typeof l !== "object") return false;
   if (typeof l.id !== "string" || typeof l.name !== "string") return false;
   if (l.kind === "cards") return Array.isArray(l.cardIds);
-  return Array.isArray(l.entities) && Array.isArray(l.checked);
+  // Older backups also carried per-list `checked`/`cardChoices`; both are
+  // optional now since that state lives globally (see App.jsx's migration).
+  return Array.isArray(l.entities);
 }
 
 export function parseBackup(text) {

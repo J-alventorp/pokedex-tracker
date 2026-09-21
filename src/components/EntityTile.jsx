@@ -1,10 +1,15 @@
+import { forwardRef } from "react";
 import { Info } from "lucide-react";
 
-export default function EntityTile({ entity, checked, collected, total, onToggle, onOpenInfo, index }) {
+const EntityTile = forwardRef(function EntityTile(
+  { entity, checked, collected, total, onToggle, onOpenInfo, index, highlighted },
+  ref,
+) {
   const rotate = index % 2 === 0 ? "-1.2deg" : "1deg";
   return (
     <div
-      className={`pc-etile pc-shape-sticker ${checked ? "checked" : ""}`}
+      ref={ref}
+      className={`pc-etile pc-shape-sticker ${checked ? "checked" : ""} ${highlighted ? "pc-etile-highlight" : ""}`}
       style={{ transform: `rotate(${rotate})` }}
       onClick={() => onToggle(entity)}
     >
@@ -27,4 +32,6 @@ export default function EntityTile({ entity, checked, collected, total, onToggle
       <div className="pc-etile-name">{entity.name}</div>
     </div>
   );
-}
+});
+
+export default EntityTile;

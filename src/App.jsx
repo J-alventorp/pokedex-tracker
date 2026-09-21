@@ -38,10 +38,44 @@ function defaultLists() {
       id: "l1",
       name: "Kanto Legends",
       entities: SEED_LIST_DEX.map((e) => makeEntity(e.dex, e.name)),
-      checked: [],
-      cardChoices: {},
     },
   ];
+}
+
+// Older saves kept each list's collected state (checked/cardChoices) local to
+// that list, separate from the Pokédex tab's global checkedEntities /
+// entityCardChoices. Fold any leftover per-list state into the global stores
+// once so a Pokémon ticked on a list still shows collected everywhere, then
+// drop the now-unused fields — lists only track membership going forward.
+function migrateListEntityState(lists, checkedEntities, entityCardChoices) {
+  let nextChecked = checkedEntities;
+  let nextChoices = entityCardChoices;
+
+  for (const l of lists) {
+    if ((l.kind ?? "entities") !== "entities") continue;
+    for (const key of l.checked ?? []) {
+      const entity = (l.entities ?? []).find((e) => entityKey(e) === key);
+      if (!entity) continue;
+      if (!nextChecked.has(entity.dex)) {
+        if (nextChecked === checkedEntities) nextChecked = new Set(checkedEntities);
+        nextChecked.add(entity.dex);
+      }
+    }
+    for (const [key, val] of Object.entries(l.cardChoices ?? {})) {
+      const entity = (l.entities ?? []).find((e) => entityKey(e) === key);
+      if (!entity || entity.dex in nextChoices) continue;
+      if (nextChoices === entityCardChoices) nextChoices = { ...entityCardChoices };
+      nextChoices[entity.dex] = val;
+    }
+  }
+
+  const lists2 = lists.map((l) => {
+    if (!("checked" in l) && !("cardChoices" in l)) return l;
+    const { checked: _checked, cardChoices: _cardChoices, ...rest } = l;
+    return rest;
+  });
+
+  return { checkedEntities: nextChecked, entityCardChoices: nextChoices, lists: lists2 };
 }
 
 // A reload mid-app lands on a history entry that already describes a screen.
@@ -63,6 +97,23 @@ export default function App() {
   const [settings, setSettings] = useState(restored?.settings ?? false);
   const [confirm, setConfirm] = useState(null);
   const [toast, setToast] = useState(null);
+  // Set by openList/startNewList when they're jumping straight from Home into
+  // a list-level screen, skipping the lists index — applied one tick later so
+  // the index still gets its own history entry (see those functions below).
+  const [pendingListNav, setPendingListNav] = useState(null);
+
+  const migratedRef = useRef(false);
+  useEffect(() => {
+    if (migratedRef.current) return;
+    migratedRef.current = true;
+    const hasLegacyState = lists.some((l) => (l.checked?.length ?? 0) > 0 || Object.keys(l.cardChoices ?? {}).length > 0);
+    if (!hasLegacyState) return;
+    const migrated = migrateListEntityState(lists, checkedEntities, entityCardChoices);
+    setCheckedEntities(migrated.checkedEntities);
+    setEntityCardChoices(migrated.entityCardChoices);
+    setLists(migrated.lists);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleCard = (id) => setCheckedCards((prev) => {
     const n = new Set(prev);
@@ -127,23 +178,17 @@ export default function App() {
   // Recomputed every render (not baked in at the moment the modal was opened)
   // so ticking cards while the modal is open updates its highlights live,
   // and closing it never needs to touch navigation/scroll state at all.
+  // Collected state and card choices for entities are global (see
+  // migrateListEntityState above), so the Pokédex tab and every list read
+  // from — and write to — the exact same store; there's no per-context branch.
   let modalData = modal;
-  if (modal?.entity && modal.context?.type === "dex") {
+  if (modal?.entity) {
     const dex = modal.entity.dex;
     modalData = {
       ...modal,
       checked: checkedEntities.has(dex),
       selectedCardIds: toCardIdArray(entityCardChoices[dex]),
       onToggleCardChoice: (cardId) => toggleEntityCard(dex, cardId),
-    };
-  } else if (modal?.entity && modal.context?.type === "list") {
-    const list = lists.find((l) => l.id === modal.context.listId);
-    const key = entityKey(modal.entity);
-    modalData = {
-      ...modal,
-      checked: !!list?.checked.includes(key),
-      selectedCardIds: toCardIdArray(list?.cardChoices?.[key]),
-      onToggleCardChoice: (cardId) => toggleListItemCard(modal.context.listId, key, cardId),
     };
   }
 
@@ -169,19 +214,42 @@ export default function App() {
     setTab(key);
   };
 
+  // Opening a list (or starting a new one) from Home jumps straight past the
+  // lists index, so it never gets its own history entry — "All lists" inside
+  // that list then has nowhere correct to go back to. Land on the index first
+  // and apply the deeper step a tick later so both get pushed.
   const openList = (id) => {
-    setActiveListId(id);
+    if (tab === "lists") {
+      setActiveListId(id);
+      setCreating(false);
+      return;
+    }
+    setActiveListId(null);
     setCreating(false);
     setSettings(false);
     setTab("lists");
+    setPendingListNav({ type: "open", id });
   };
 
   const startNewList = () => {
+    if (tab === "lists") {
+      setActiveListId(null);
+      setCreating(true);
+      return;
+    }
     setActiveListId(null);
-    setCreating(true);
+    setCreating(false);
     setSettings(false);
     setTab("lists");
+    setPendingListNav({ type: "create" });
   };
+
+  useEffect(() => {
+    if (!pendingListNav || tab !== "lists") return;
+    if (pendingListNav.type === "open") setActiveListId(pendingListNav.id);
+    else if (pendingListNav.type === "create") setCreating(true);
+    setPendingListNav(null);
+  }, [tab, pendingListNav]);
 
   // --- Lists -----------------------------------------------------------------
   const performDeleteList = (id) => {
@@ -263,26 +331,16 @@ export default function App() {
     }
   };
 
-  const toggleListItemCard = (listId, key, cardId) => {
-    setLists((prev) => prev.map((l) => {
-      if (l.id !== listId) return l;
-      const current = toCardIdArray(l.cardChoices?.[key]);
-      const adding = !current.includes(cardId);
-      const next = adding ? [...current, cardId] : current.filter((id) => id !== cardId);
-      const cardChoices = { ...(l.cardChoices || {}) };
-      if (next.length === 0) delete cardChoices[key];
-      else cardChoices[key] = next;
-      const checked = adding && !l.checked.includes(key) ? [...l.checked, key] : l.checked;
-      return { ...l, cardChoices, checked };
-    }));
-  };
-
   // --- Backup ----------------------------------------------------------------
   const applyImport = (backup) => {
+    // An older backup can still carry per-list checked/cardChoices — fold
+    // those into the global stores the same way the one-time migration does,
+    // so restoring an old file doesn't lose collected state.
+    const migrated = migrateListEntityState(backup.lists, new Set(backup.checkedEntities), backup.entityCardChoices ?? {});
     setCheckedCards(new Set(backup.checkedCards));
-    setCheckedEntities(new Set(backup.checkedEntities));
-    setEntityCardChoices(backup.entityCardChoices ?? {});
-    setLists(backup.lists);
+    setCheckedEntities(migrated.checkedEntities);
+    setEntityCardChoices(migrated.entityCardChoices);
+    setLists(migrated.lists);
     setAutoDismissed(new Set(backup.autoListDismissed));
     setActiveListId(null);
     setCreating(false);
@@ -365,7 +423,9 @@ export default function App() {
               onDeleteList={requestDeleteList}
               checkedCards={checkedCards}
               onToggleCard={toggleCard}
-              onRequestConfirm={setConfirm}
+              checkedEntities={checkedEntities}
+              entityCardChoices={entityCardChoices}
+              onToggleEntity={requestToggleEntity}
               onBack={goBack}
             />
           )}

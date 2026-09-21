@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, Plus, Search } from "lucide-react";
 import { usePokedexEntities } from "../../hooks/usePokedexEntities";
 import { usePokemonCategories } from "../../hooks/usePokemonCategories";
@@ -21,7 +21,9 @@ export default function ListsTab({
   onDeleteList,
   checkedCards,
   onToggleCard,
-  onRequestConfirm,
+  checkedEntities,
+  entityCardChoices,
+  onToggleEntity,
   onBack,
 }) {
   const [newListName, setNewListName] = useState("");
@@ -29,6 +31,8 @@ export default function ListsTab({
   const [saveError, setSaveError] = useState("");
   const [query, setQuery] = useState("");
   const [view, setView] = useState("all");
+  const [highlightDex, setHighlightDex] = useState(null);
+  const tileRefs = useRef(new Map());
 
   const { entities: pickEntities, status: pickStatus, loadMore, hasMore } = usePokedexEntities();
   const { categories, status: categoriesStatus } = usePokemonCategories();
@@ -36,35 +40,37 @@ export default function ListsTab({
   const cardCounts = useCardCountsByDex();
 
   const activeList = lists.find((l) => l.id === activeListId);
+  const visibleEntities = (activeList?.entities ?? []).filter((e) => {
+    const has = checkedEntities.has(e.dex);
+    if (view === "collected") return has;
+    if (view === "missing") return !has;
+    return true;
+  });
 
-  const commitToggleListItem = (listId, key) => {
-    setLists((prev) => prev.map((l) => {
-      if (l.id !== listId) return l;
-      const has = l.checked.includes(key);
-      if (has) {
-        // Unticking means "not collected" — drop a stale card choice too.
-        const cardChoices = { ...(l.cardChoices || {}) };
-        delete cardChoices[key];
-        return { ...l, checked: l.checked.filter((k) => k !== key), cardChoices };
-      }
-      return { ...l, checked: [...l.checked, key] };
-    }));
-  };
-
-  const toggleListItem = (listId, key, name) => {
-    const list = lists.find((l) => l.id === listId);
-    if (list?.checked.includes(key)) {
-      onRequestConfirm({
-        title: "Remove from collected?",
-        message: `${name} will no longer be marked as collected on this list, and any cards you picked for it will be cleared.`,
-        confirmLabel: "Remove",
-        tone: "danger",
-        onConfirm: () => commitToggleListItem(listId, key),
-      });
+  // Searching doesn't hide the rest of the list — it scrolls to and briefly
+  // highlights the match so you can keep browsing from there (same as the
+  // Pokédex tab's search, and consistent since both read the same collected
+  // state now). Runs unconditionally (even while the create panel or the
+  // lists grid is showing) to keep this a top-level hook; it's a no-op
+  // whenever there's no active entity list.
+  useEffect(() => {
+    if (!activeList || activeList.kind === "cards") return;
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      setHighlightDex(null);
       return;
     }
-    commitToggleListItem(listId, key);
-  };
+    const match = visibleEntities.find((e) => e.name.toLowerCase().includes(q));
+    if (!match) {
+      setHighlightDex(null);
+      return;
+    }
+    setHighlightDex(match.dex);
+    tileRefs.current.get(match.dex)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => setHighlightDex(null), 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, activeList?.id]);
 
   const toggleCategory = (name) => {
     const already = activeCategories.has(name);
@@ -115,7 +121,7 @@ export default function ListsTab({
       return;
     }
     const id = `l${Date.now()}`;
-    setLists((prev) => [...prev, { id, name: newListName.trim(), entities: [...newListEntities.values()], checked: [], cardChoices: {} }]);
+    setLists((prev) => [...prev, { id, name: newListName.trim(), entities: [...newListEntities.values()] }]);
     resetDraft();
     setCreating(false);
     setActiveListId(id);
@@ -211,7 +217,7 @@ export default function ListsTab({
     return (
       <div className="pc-lists-grid">
         {lists.map((l) => (
-          <ListCard key={l.id} list={l} checkedCards={checkedCards} onOpen={setActiveListId} onDelete={onDeleteList} />
+          <ListCard key={l.id} list={l} checkedCards={checkedCards} checkedEntities={checkedEntities} onOpen={setActiveListId} onDelete={onDeleteList} />
         ))}
         <div className="pc-new-list-card" onClick={() => setCreating(true)}>
           <Plus size={22} />
@@ -221,14 +227,7 @@ export default function ListsTab({
     );
   }
 
-  const filtered = activeList.entities.filter((e) => e.name.toLowerCase().includes(query.toLowerCase()));
-  const visible = filtered.filter((e) => {
-    const has = activeList.checked.includes(entityKey(e));
-    if (view === "collected") return has;
-    if (view === "missing") return !has;
-    return true;
-  });
-  const done = activeList.checked.length;
+  const done = activeList.entities.filter((e) => checkedEntities.has(e.dex)).length;
 
   return (
     <>
@@ -243,15 +242,20 @@ export default function ListsTab({
       </div>
       <ProgressBar done={done} total={activeList.entities.length} />
       <div className="pc-grid">
-        {visible.map((e, i) => (
+        {visibleEntities.map((e, i) => (
           <EntityTile
             key={entityKey(e)}
+            ref={(node) => {
+              if (node) tileRefs.current.set(e.dex, node);
+              else tileRefs.current.delete(e.dex);
+            }}
             entity={e}
             index={i}
-            checked={activeList.checked.includes(entityKey(e))}
-            collected={toCardIdArray(activeList.cardChoices?.[entityKey(e)]).length}
+            checked={checkedEntities.has(e.dex)}
+            collected={toCardIdArray(entityCardChoices[e.dex]).length}
             total={cardCounts.get(e.dex)}
-            onToggle={(entity) => toggleListItem(activeList.id, entityKey(entity), entity.name)}
+            highlighted={highlightDex === e.dex}
+            onToggle={onToggleEntity}
             onOpenInfo={(data) => onOpenInfo({ ...data, context: { type: "list", listId: activeList.id } })}
           />
         ))}
