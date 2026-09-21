@@ -18,6 +18,19 @@ function stripSuffix(name, suffixes) {
   return null;
 }
 
+// Most form names put the region/variant word at the end
+// ("charizard-mega-x"), but some put it in the middle instead — Galarian
+// Darmanitan is "darmanitan-galar-standard", not "darmanitan-standard-galar"
+// — so stripSuffix alone misses it and it silently drops out of every
+// category. Try removing it as a middle segment too before giving up.
+function stripInfix(name, suffixes) {
+  for (const suffix of suffixes) {
+    const infix = `${suffix}-`; // "-galar" -> "-galar-"
+    if (name.includes(infix)) return name.replace(infix, "-");
+  }
+  return null;
+}
+
 function buildCategories(all) {
   const idByName = new Map(all.map((e) => [e.name, e.id]));
   const categories = { "Whole Pokédex": [] };
@@ -32,14 +45,14 @@ function buildCategories(all) {
     // below instead of being silently dropped from every category.
     let matchedForm = false;
     for (const cat of FORM_CATEGORIES) {
-      const baseName = stripSuffix(entry.name, cat.suffixes);
+      const baseName = stripSuffix(entry.name, cat.suffixes) ?? stripInfix(entry.name, cat.suffixes);
       if (baseName === null) continue;
       const baseDex = idByName.get(baseName);
       if (!baseDex) continue;
       categories[cat.label].push({
         id: entry.name,
         dex: baseDex,
-        name: capitalize(entry.name.replace(/-/g, " ")),
+        name: entry.name.split("-").map((w) => capitalize(w)).join(" "),
         sprite: spriteUrl(baseDex),
         spriteSmall: spriteUrlSmall(baseDex),
       });
